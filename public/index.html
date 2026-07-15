@@ -55,13 +55,29 @@
       </div>
     </div>
 
-      <!-- Demo mode button -->
-    <div class="demo-controls">
+      <!-- Toolbar -->
+    <div class="toolbar">
+      <button class="tool-btn" id="popup-btn" title="在新窗口打开角色（透明背景，适合OBS捕获）">📌 弹出角色</button>
+      <button class="tool-btn" id="model-btn" title="切换或导入 Live2D 模型">📁 切换模型</button>
       <button class="demo-btn" id="demo-btn" title="按空格键切换演示模式">▶ 演示模式</button>
       <div class="demo-indicator" id="demo-indicator" style="display:none">
         <span class="demo-dot"></span> 演示中
       </div>
       <span class="kb-hint">快捷键 0-9 切换表情 · 空格 演示</span>
+
+      <!-- Model switcher panel (hidden by default) -->
+      <div class="model-panel" id="model-panel" style="display:none">
+        <div class="model-panel-title">切换模型</div>
+        <div class="model-list" id="model-list">加载中...</div>
+        <div class="model-custom">
+          <input type="text" id="model-path-input" placeholder="输入模型路径或 URL（如 models/xxx/model3.json）">
+          <button class="tool-btn" id="model-load-btn">加载</button>
+        </div>
+        <div class="model-custom" style="margin-top:4px;">
+          <span style="font-size:11px;color:#5a70a0;">或者选择文件夹导入：</span>
+          <input type="file" id="model-file-input" accept=".model3.json" style="font-size:11px;color:#8ab4f0;">
+        </div>
+      </div>
     </div>
 
     <!-- Footer -->

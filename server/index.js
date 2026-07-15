@@ -317,6 +317,44 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // ── GET /models ───────────────────────────
+  if (pathname === '/models') {
+    const models = [];
+    try {
+      const entries = fs.readdirSync(MODEL_DIR, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        const modelDir = path.join(MODEL_DIR, entry.name);
+        // Search recursively for .model3.json
+        function findModel3(dir, depth) {
+          if (depth > 3) return null;
+          try {
+            const items = fs.readdirSync(dir, { withFileTypes: true });
+            for (const item of items) {
+              const full = path.join(dir, item.name);
+              if (item.isFile() && item.name.endsWith('.model3.json')) {
+                return full;
+              }
+              if (item.isDirectory()) {
+                const found = findModel3(full, depth + 1);
+                if (found) return found;
+              }
+            }
+          } catch {}
+          return null;
+        }
+        const model3Path = findModel3(modelDir, 0);
+        if (model3Path) {
+          const relPath = path.relative(PUBLIC_DIR, model3Path).replace(/\\/g, '/');
+          models.push({ name: entry.name, path: relPath });
+        }
+      }
+    } catch {}
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ models }));
+    return;
+  }
+
   // ── GET /status ───────────────────────────
   if (pathname === '/status') {
     res.writeHead(200, { 'Content-Type': 'application/json' });

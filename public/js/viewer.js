@@ -494,6 +494,11 @@ function setEmotion(emotionId, source) {
   if (expr.tail) {
     tailState = { ...expr.tail };
   }
+
+  // Notify popup window if open
+  if (popupWindow && !popupWindow.closed) {
+    try { popupWindow.postMessage({ type: 'set-emotion', emotion: emotionId }, '*'); } catch {}
+  }
 }
 
 // ──────────────────────────────────────────────
@@ -594,6 +599,120 @@ function connectSSE() {
 }
 
 // ──────────────────────────────────────────────
+// Popup window (standalone character overlay)
+// ──────────────────────────────────────────────
+
+let popupWindow = null;
+
+function openPopup() {
+  if (popupWindow && !popupWindow.closed) {
+    popupWindow.focus();
+    return;
+  }
+  const url = '/popup.html?model=' + encodeURIComponent(MODEL_PATH) + '&scale=' + MODEL_SCALE;
+  popupWindow = window.open(url, 'live2d-overlay', 'width=520,height=640,menubar=no,toolbar=no,status=no');
+  if (els.popupBtn) els.popupBtn.textContent = '📌 已弹出';
+}
+
+// Listen for popup-ready message
+window.addEventListener('message', (e) => {
+  if (e.data && e.data.type === 'popup-ready') {
+    // Send current emotion to popup
+    if (popupWindow && !popupWindow.closed) {
+      popupWindow.postMessage({ type: 'set-emotion', emotion: currentEmotion }, '*');
+    }
+  }
+});
+
+// Check if popup closed
+setInterval(() => {
+  if (popupWindow && popupWindow.closed) {
+    popupWindow = null;
+    if (els.popupBtn) els.popupBtn.textContent = '📌 弹出角色';
+  }
+}, 1000);
+
+// ──────────────────────────────────────────────
+// Model switching
+// ──────────────────────────────────────────────
+
+let MODEL_PATH = 'models/hiyori_free_t08/hiyori_free_t08.model3.json';
+let MODEL_SCALE = 0.28;
+
+async function loadModelList() {
+  if (!els.modelList) return;
+  try {
+    const r = await fetch('/models');
+    const data = await r.json();
+    if (data.models && data.models.length > 0) {
+      els.modelList.innerHTML = data.models.map(m => {
+        const isActive = MODEL_PATH === m.path;
+        return '<div class="model-list-item' + (isActive ? ' active' : '') + '" data-path="' + m.path + '">' + m.name + '</div>';
+      }).join('');
+      // Click handlers
+      els.modelList.querySelectorAll('.model-list-item').forEach(el => {
+        el.addEventListener('click', () => switchModel(el.dataset.path));
+      });
+    } else {
+      els.modelList.innerHTML = '<div style="font-size:11px;color:#5a70a0;">未找到其他模型</div>';
+    }
+  } catch {
+    els.modelList.innerHTML = '<div style="font-size:11px;color:#ff6b6b;">加载失败</div>';
+  }
+}
+
+async function switchModel(newPath) {
+  if (newPath === MODEL_PATH) return;
+  // Pass model path via URL param so it persists across reload
+  const sep = window.location.search ? '&' : '?';
+  window.location.search = '?model=' + encodeURIComponent(newPath) + '&scale=' + MODEL_SCALE;
+}
+
+function initModelPanel() {
+  if (!els.modelBtn || !els.modelPanel) return;
+
+  els.modelBtn.addEventListener('click', () => {
+    const visible = els.modelPanel.style.display !== 'none';
+    els.modelPanel.style.display = visible ? 'none' : 'flex';
+    els.modelPanel.style.flexDirection = 'column';
+    if (!visible) loadModelList();
+  });
+
+  // Manual path load
+  if (els.modelLoadBtn && els.modelPathInput) {
+    els.modelLoadBtn.addEventListener('click', () => {
+      const p = els.modelPathInput.value.trim();
+      if (p) switchModel(p);
+    });
+    els.modelPathInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const p = els.modelPathInput.value.trim();
+        if (p) switchModel(p);
+      }
+    });
+  }
+
+  // File import
+  if (els.modelFileInput) {
+    els.modelFileInput.addEventListener('change', async () => {
+      const file = els.modelFileInput.files[0];
+      if (!file) return;
+      try {
+        // Create a blob URL for the uploaded model3.json
+        const blobUrl = URL.createObjectURL(file);
+        MODEL_PATH = blobUrl;
+        // For now, just reload — pixi-live2d-display can handle blob URLs
+        // but referenced files (moc3, textures) won't resolve. Show warning.
+        alert('注意：导入单个 .model3.json 文件只能切换模型描述，\n.moc3 和贴图文件需要在同目录下才能正确加载。\n\n建议把模型整个文件夹放到 public/models/ 下，\n然后从列表切换。');
+        URL.revokeObjectURL(blobUrl);
+      } catch (e) {
+        console.error('Import failed:', e);
+      }
+    });
+  }
+}
+
+// ──────────────────────────────────────────────
 // Demo mode — auto-cycle emotions
 // ──────────────────────────────────────────────
 
@@ -670,8 +789,12 @@ function initKeyboard() {
 // ──────────────────────────────────────────────
 
 async function loadModel() {
-  // Hiyori (Cubism 4) — 28 parameters, compatible with Core v4.2.2
-  const MODEL_PATH = 'models/hiyori_free_t08/hiyori_free_t08.model3.json';
+  // Read model path from URL params (for model switching), fall back to default
+  const urlParams = new URLSearchParams(window.location.search);
+  const modelFromUrl = urlParams.get('model');
+  if (modelFromUrl) MODEL_PATH = modelFromUrl;
+  const scaleFromUrl = parseFloat(urlParams.get('scale'));
+  if (scaleFromUrl) MODEL_SCALE = scaleFromUrl;
 
   try {
     // Check if PIXI and Live2DModel are available
@@ -696,10 +819,12 @@ async function loadModel() {
       autoInteract: false,
     });
 
-    // Center and scale — Hiyori needs much smaller scale than Mao
+    // Center and scale
+    const sw = app.screen.width;
+    const sh = app.screen.height;
     model.x = sw / 2;
     model.y = sh / 2;
-    model.scale.set(0.28);
+    model.scale.set(MODEL_SCALE);
     model.anchor.set(0.5, 0.5);
 
     app.stage.addChild(model);
@@ -753,6 +878,13 @@ function init() {
   els.badgeText = document.getElementById('badge-text');
   els.demoBtn = document.getElementById('demo-btn');
   els.demoIndicator = document.getElementById('demo-indicator');
+  els.popupBtn = document.getElementById('popup-btn');
+  els.modelBtn = document.getElementById('model-btn');
+  els.modelPanel = document.getElementById('model-panel');
+  els.modelList = document.getElementById('model-list');
+  els.modelLoadBtn = document.getElementById('model-load-btn');
+  els.modelPathInput = document.getElementById('model-path-input');
+  els.modelFileInput = document.getElementById('model-file-input');
 
   if (!els.canvas) {
     console.error('[claude-emotion-link] Canvas element not found');
@@ -763,6 +895,14 @@ function init() {
   if (els.demoBtn) {
     els.demoBtn.addEventListener('click', toggleDemo);
   }
+
+  // Popup button — open standalone character window
+  if (els.popupBtn) {
+    els.popupBtn.addEventListener('click', openPopup);
+  }
+
+  // Model panel — init toggle + file import handlers
+  initModelPanel();
 
   // Expose setEmotion globally for SSE injection script
   window.setEmotion = setEmotion;

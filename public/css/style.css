@@ -308,20 +308,22 @@ html, body {
   color: #3a5080;
 }
 
-/* ── Demo Controls ──────────────────────────── */
-.demo-controls {
+/* ── Toolbar & Controls ─────────────────────── */
+.toolbar {
   position: absolute;
   bottom: 16px;
   right: 20px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   z-index: 3;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
-.demo-btn {
-  padding: 6px 16px;
-  font-size: 13px;
+.tool-btn, .demo-btn {
+  padding: 6px 14px;
+  font-size: 12px;
   font-family: inherit;
   color: #8ab4f0;
   background: rgba(10, 14, 39, 0.7);
@@ -330,9 +332,10 @@ html, body {
   cursor: pointer;
   transition: all 0.3s;
   backdrop-filter: blur(8px);
+  white-space: nowrap;
 }
 
-.demo-btn:hover {
+.tool-btn:hover, .demo-btn:hover {
   border-color: rgba(100, 180, 255, 0.5);
   color: #b8d4ff;
   background: rgba(20, 28, 60, 0.8);
@@ -360,14 +363,90 @@ html, body {
   color: #2a4070;
 }
 
+/* ── Model Panel ────────────────────────────── */
+.model-panel {
+  position: absolute;
+  bottom: 48px;
+  right: 0;
+  width: 320px;
+  padding: 12px;
+  background: rgba(10, 14, 39, 0.92);
+  border: 1px solid rgba(100, 180, 255, 0.2);
+  border-radius: 12px;
+  backdrop-filter: blur(12px);
+  z-index: 4;
+}
+
+.model-panel-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #a0b8ee;
+  margin-bottom: 8px;
+}
+
+.model-list {
+  max-height: 160px;
+  overflow-y: auto;
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.model-list-item {
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #8ab4f0;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.model-list-item:hover {
+  background: rgba(100, 180, 255, 0.1);
+  color: #c8d8ff;
+}
+
+.model-list-item.active {
+  background: rgba(100, 180, 255, 0.15);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.model-custom {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.model-custom input[type="text"] {
+  flex: 1;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-family: inherit;
+  color: #c8d8ff;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(100,180,255,0.15);
+  border-radius: 8px;
+  outline: none;
+}
+
+.model-custom input[type="text"]:focus {
+  border-color: rgba(100,180,255,0.4);
+}
+
 @media (max-width: 540px) {
-  .demo-controls {
+  .toolbar {
     bottom: 8px;
     right: 8px;
-    gap: 8px;
+    gap: 6px;
   }
   .kb-hint {
     display: none;
+  }
+  .model-panel {
+    width: 260px;
+    right: -20px;
   }
 }
 
