@@ -501,6 +501,7 @@ function setEmotion(emotionId, source) {
 // ──────────────────────────────────────────────
 
 function updateUI(expr) {
+  // Canvas-area overlay
   if (els.icon) {
     els.icon.textContent = expr.icon;
     els.icon.classList.remove('changed');
@@ -508,6 +509,20 @@ function updateUI(expr) {
     els.icon.classList.add('changed');
   }
   if (els.name) els.name.textContent = expr.label;
+
+  // Always-on-top badge
+  if (els.badgeIcon) {
+    els.badgeIcon.textContent = expr.icon;
+    els.badgeIcon.classList.remove('pulse');
+    void els.badgeIcon.offsetWidth;
+    els.badgeIcon.classList.add('pulse');
+  }
+  if (els.badgeText) els.badgeText.textContent = expr.label;
+  if (els.badge && currentEmotion) {
+    // Remove old emotion class, add new one for glow color
+    els.badge.className = els.badge.className.replace(/emotion-badge-top\s+\S+/, 'emotion-badge-top');
+    els.badge.classList.add(currentEmotion);
+  }
 }
 
 function spawnEffects(effects) {
@@ -634,6 +649,9 @@ function init() {
   els.label = document.getElementById('status-label');
   els.effects = document.getElementById('float-effects');
   els.loading = document.getElementById('loading');
+  els.badge = document.getElementById('emotion-badge-top');
+  els.badgeIcon = document.getElementById('badge-icon');
+  els.badgeText = document.getElementById('badge-text');
 
   if (!els.canvas) {
     console.error('[claude-emotion-link] Canvas element not found');

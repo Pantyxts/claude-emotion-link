@@ -1,7 +1,4 @@
-/* ================================================
- /* ── claude-emotion-link — Viewer Styles ── */
-   Styles
-   ================================================ */
+/* ── claude-emotion-link — Viewer Styles ── */
 
 /* ── Reset & Base ────────────────────────────── */
 *, *::before, *::after {
@@ -195,6 +192,64 @@ html, body {
   0%, 100% { transform: scale(1) rotate(0deg); }
   50%      { transform: scale(1.2) rotate(15deg); }
 }
+
+/* ── Always-on-top Emotion Badge ─────────────── */
+.emotion-badge-top {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 24px;
+  background: rgba(10, 14, 39, 0.85);
+  border: 1px solid rgba(100, 180, 255, 0.25);
+  border-radius: 30px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3), 0 0 40px rgba(100, 180, 255, 0.08);
+  transition: border-color 0.4s, box-shadow 0.4s;
+  pointer-events: none;
+}
+
+.badge-icon {
+  font-size: 28px;
+  line-height: 1;
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.badge-icon.pulse {
+  animation: badgeBounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes badgeBounce {
+  0%   { transform: scale(0.5); }
+  50%  { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+
+.badge-text {
+  font-size: 18px;
+  font-weight: 600;
+  color: #c8d8ff;
+  letter-spacing: 0.5px;
+  min-width: 56px;
+  text-align: center;
+  transition: color 0.4s;
+}
+
+/* Glow tint per emotion (applied via JS class on the badge) */
+.emotion-badge-top.happy    { border-color: rgba(255, 215, 0, 0.4);   box-shadow: 0 4px 24px rgba(0,0,0,0.3), 0 0 50px rgba(255,215,0,0.12); }
+.emotion-badge-top.veryHappy { border-color: rgba(255, 107, 157, 0.4); box-shadow: 0 4px 24px rgba(0,0,0,0.3), 0 0 60px rgba(255,107,157,0.15); }
+.emotion-badge-top.sad      { border-color: rgba(92, 107, 192, 0.4);  box-shadow: 0 4px 24px rgba(0,0,0,0.3), 0 0 40px rgba(92,107,192,0.1); }
+.emotion-badge-top.surprised{ border-color: rgba(171, 71, 188, 0.4);  box-shadow: 0 4px 24px rgba(0,0,0,0.3), 0 0 50px rgba(171,71,188,0.12); }
+.emotion-badge-top.thinking { border-color: rgba(126, 87, 194, 0.4);  box-shadow: 0 4px 24px rgba(0,0,0,0.3), 0 0 40px rgba(126,87,194,0.1); }
+.emotion-badge-top.angry    { border-color: rgba(239, 83, 80, 0.4);   box-shadow: 0 4px 24px rgba(0,0,0,0.3), 0 0 50px rgba(239,83,80,0.12); }
+.emotion-badge-top.embarrassed { border-color: rgba(255, 128, 171, 0.4); box-shadow: 0 4px 24px rgba(0,0,0,0.3), 0 0 50px rgba(255,128,171,0.12); }
+.emotion-badge-top.sleepy   { border-color: rgba(144, 164, 174, 0.4); box-shadow: 0 4px 24px rgba(0,0,0,0.3), 0 0 30px rgba(144,164,174,0.08); }
+.emotion-badge-top.tipsy    { border-color: rgba(255, 138, 101, 0.4); box-shadow: 0 4px 24px rgba(0,0,0,0.3), 0 0 50px rgba(255,138,101,0.12); }
 
 /* ── Float effects ───────────────────────────── */
 .float-effects {

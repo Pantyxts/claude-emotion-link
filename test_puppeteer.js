@@ -98,6 +98,9 @@ const puppeteer = require('puppeteer');
       return {
         emotion: document.getElementById('emotion-name')?.textContent,
         icon: document.getElementById('emotion-icon')?.textContent,
+        badgeText: document.getElementById('badge-text')?.textContent,
+        badgeIcon: document.getElementById('badge-icon')?.textContent,
+        badgeClass: document.getElementById('emotion-badge-top')?.className,
       };
     });
     console.log('After emotion push:', JSON.stringify(afterEmotion, null, 2));
