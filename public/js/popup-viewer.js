@@ -23,118 +23,18 @@ const ZOOM_MIN = 0.2;
 const ZOOM_MAX = 3.5;
 const ZOOM_STEP = 0.06;
 
-// ── 表情参数映射（和主 viewer.js 保持一致）──
+// ── 表情参数映射（和主 viewer.js v3 amplified 保持一致）──
 const EXPRESSIONS = {
-  neutral: {
-    params: {
-      ParamAngleX:0, ParamAngleY:0, ParamAngleZ:0, ParamCheek:0,
-      ParamEyeLOpen:1, ParamEyeROpen:1, ParamEyeLSmile:0, ParamEyeRSmile:0,
-      ParamEyeBallX:0, ParamEyeBallY:0,
-      ParamBrowLForm:0, ParamBrowRForm:0,
-      ParamMouthForm:0, ParamMouthOpenY:0,
-      ParamBodyAngleX:0, ParamBodyAngleY:0, ParamBodyAngleZ:0, ParamBreath:0.5,
-      ParamArmLA:0, ParamArmRA:0,
-    },
-  },
-  happy: {
-    params: {
-      ParamAngleX:0, ParamAngleY:2, ParamAngleZ:0, ParamCheek:0.15,
-      ParamEyeLOpen:0.75, ParamEyeROpen:0.75, ParamEyeLSmile:0.7, ParamEyeRSmile:0.7,
-      ParamEyeBallX:0, ParamEyeBallY:0,
-      ParamBrowLForm:0.35, ParamBrowRForm:0.35,
-      ParamMouthForm:0.5, ParamMouthOpenY:0,
-      ParamBodyAngleX:0, ParamBodyAngleY:1, ParamBodyAngleZ:0, ParamBreath:0.6,
-      ParamArmLA:0.05, ParamArmRA:0.05,
-    },
-  },
-  veryHappy: {
-    params: {
-      ParamAngleX:2, ParamAngleY:4, ParamAngleZ:1, ParamCheek:0.35,
-      ParamEyeLOpen:0.5, ParamEyeROpen:0.5, ParamEyeLSmile:1, ParamEyeRSmile:1,
-      ParamEyeBallX:0, ParamEyeBallY:0,
-      ParamBrowLForm:0.6, ParamBrowRForm:0.6,
-      ParamMouthForm:0.8, ParamMouthOpenY:0.15,
-      ParamBodyAngleX:1, ParamBodyAngleY:3, ParamBodyAngleZ:0, ParamBreath:0.7,
-      ParamArmLA:0.15, ParamArmRA:0.15,
-    },
-  },
-  sad: {
-    params: {
-      ParamAngleX:0, ParamAngleY:-3, ParamAngleZ:0, ParamCheek:0,
-      ParamEyeLOpen:0.65, ParamEyeROpen:0.65, ParamEyeLSmile:0, ParamEyeRSmile:0,
-      ParamEyeBallX:0, ParamEyeBallY:-0.15,
-      ParamBrowLForm:-0.35, ParamBrowRForm:-0.35,
-      ParamMouthForm:-0.35, ParamMouthOpenY:0,
-      ParamBodyAngleX:0, ParamBodyAngleY:-2, ParamBodyAngleZ:0, ParamBreath:0.4,
-      ParamArmLA:-0.05, ParamArmRA:-0.05,
-    },
-  },
-  surprised: {
-    params: {
-      ParamAngleX:0, ParamAngleY:2, ParamAngleZ:0, ParamCheek:0,
-      ParamEyeLOpen:1, ParamEyeROpen:1, ParamEyeLSmile:0, ParamEyeRSmile:0,
-      ParamEyeBallX:0, ParamEyeBallY:0,
-      ParamBrowLForm:0.8, ParamBrowRForm:0.8,
-      ParamMouthForm:0.1, ParamMouthOpenY:0.6,
-      ParamBodyAngleX:0, ParamBodyAngleY:2, ParamBodyAngleZ:0, ParamBreath:0.6,
-      ParamArmLA:0.2, ParamArmRA:0.2,
-    },
-  },
-  thinking: {
-    params: {
-      ParamAngleX:-3, ParamAngleY:-1, ParamAngleZ:1, ParamCheek:0,
-      ParamEyeLOpen:0.6, ParamEyeROpen:0.8, ParamEyeLSmile:0, ParamEyeRSmile:0,
-      ParamEyeBallX:0.3, ParamEyeBallY:0.1,
-      ParamBrowLForm:-0.2, ParamBrowRForm:0.3,
-      ParamMouthForm:-0.1, ParamMouthOpenY:0,
-      ParamBodyAngleX:-2, ParamBodyAngleY:-1, ParamBodyAngleZ:0, ParamBreath:0.5,
-      ParamArmLA:0.1, ParamArmRA:0,
-    },
-  },
-  angry: {
-    params: {
-      ParamAngleX:0, ParamAngleY:-1, ParamAngleZ:0, ParamCheek:0.05,
-      ParamEyeLOpen:0.8, ParamEyeROpen:0.8, ParamEyeLSmile:0, ParamEyeRSmile:0,
-      ParamEyeBallX:0, ParamEyeBallY:0,
-      ParamBrowLForm:-0.7, ParamBrowRForm:-0.7,
-      ParamMouthForm:-0.3, ParamMouthOpenY:0.1,
-      ParamBodyAngleX:0, ParamBodyAngleY:-1, ParamBodyAngleZ:0, ParamBreath:0.7,
-      ParamArmLA:0.15, ParamArmRA:0.15,
-    },
-  },
-  embarrassed: {
-    params: {
-      ParamAngleX:-5, ParamAngleY:-4, ParamAngleZ:2, ParamCheek:0.9,
-      ParamEyeLOpen:0.85, ParamEyeROpen:0.85, ParamEyeLSmile:0.3, ParamEyeRSmile:0.3,
-      ParamEyeBallX:-0.2, ParamEyeBallY:-0.1,
-      ParamBrowLForm:0.2, ParamBrowRForm:0.2,
-      ParamMouthForm:0.2, ParamMouthOpenY:0,
-      ParamBodyAngleX:-3, ParamBodyAngleY:-2, ParamBodyAngleZ:1, ParamBreath:0.6,
-      ParamArmLA:0.05, ParamArmRA:0.05,
-    },
-  },
-  sleepy: {
-    params: {
-      ParamAngleX:2, ParamAngleY:0, ParamAngleZ:2, ParamCheek:0,
-      ParamEyeLOpen:0.15, ParamEyeROpen:0.15, ParamEyeLSmile:0, ParamEyeRSmile:0,
-      ParamEyeBallX:0, ParamEyeBallY:-0.1,
-      ParamBrowLForm:-0.05, ParamBrowRForm:-0.05,
-      ParamMouthForm:0, ParamMouthOpenY:0.05,
-      ParamBodyAngleX:1, ParamBodyAngleY:0, ParamBodyAngleZ:0, ParamBreath:0.35,
-      ParamArmLA:-0.1, ParamArmRA:-0.1,
-    },
-  },
-  tipsy: {
-    params: {
-      ParamAngleX:5, ParamAngleY:3, ParamAngleZ:3, ParamCheek:0.7,
-      ParamEyeLOpen:0.55, ParamEyeROpen:0.55, ParamEyeLSmile:0.45, ParamEyeRSmile:0.45,
-      ParamEyeBallX:0.1, ParamEyeBallY:-0.05,
-      ParamBrowLForm:0.15, ParamBrowRForm:0.15,
-      ParamMouthForm:0.35, ParamMouthOpenY:0.05,
-      ParamBodyAngleX:3, ParamBodyAngleY:2, ParamBodyAngleZ:1, ParamBreath:0.55,
-      ParamArmLA:0, ParamArmRA:0,
-    },
-  },
+  neutral:{params:{ParamAngleX:0,ParamAngleY:0,ParamAngleZ:0,ParamCheek:0,ParamEyeLOpen:1,ParamEyeROpen:1,ParamEyeLSmile:0,ParamEyeRSmile:0,ParamEyeBallX:0,ParamEyeBallY:0,ParamBrowLForm:0,ParamBrowRForm:0,ParamMouthForm:0,ParamMouthOpenY:0,ParamBodyAngleX:0,ParamBodyAngleY:0,ParamBodyAngleZ:0,ParamBreath:0.5,ParamArmLA:0,ParamArmRA:0}},
+  happy:{params:{ParamAngleX:0,ParamAngleY:3,ParamAngleZ:0,ParamCheek:0.3,ParamEyeLOpen:0.7,ParamEyeROpen:0.7,ParamEyeLSmile:0.95,ParamEyeRSmile:0.95,ParamEyeBallX:0,ParamEyeBallY:0,ParamBrowLForm:0.5,ParamBrowRForm:0.5,ParamMouthForm:0.75,ParamMouthOpenY:0,ParamBodyAngleX:0,ParamBodyAngleY:3,ParamBodyAngleZ:0,ParamBreath:0.6,ParamArmLA:0.08,ParamArmRA:0.08}},
+  veryHappy:{params:{ParamAngleX:3,ParamAngleY:6,ParamAngleZ:2,ParamCheek:0.55,ParamEyeLOpen:0.4,ParamEyeROpen:0.4,ParamEyeLSmile:1,ParamEyeRSmile:1,ParamEyeBallX:0,ParamEyeBallY:0,ParamBrowLForm:0.85,ParamBrowRForm:0.85,ParamMouthForm:1,ParamMouthOpenY:0.3,ParamBodyAngleX:2,ParamBodyAngleY:5,ParamBodyAngleZ:0,ParamBreath:0.75,ParamArmLA:0.2,ParamArmRA:0.2}},
+  sad:{params:{ParamAngleX:0,ParamAngleY:-5,ParamAngleZ:0,ParamCheek:0,ParamEyeLOpen:0.45,ParamEyeROpen:0.45,ParamEyeLSmile:0,ParamEyeRSmile:0,ParamEyeBallX:0,ParamEyeBallY:-0.25,ParamBrowLForm:-0.65,ParamBrowRForm:-0.65,ParamMouthForm:-0.6,ParamMouthOpenY:0,ParamBodyAngleX:0,ParamBodyAngleY:-5,ParamBodyAngleZ:0,ParamBreath:0.35,ParamArmLA:-0.1,ParamArmRA:-0.1}},
+  surprised:{params:{ParamAngleX:0,ParamAngleY:4,ParamAngleZ:0,ParamCheek:0,ParamEyeLOpen:1,ParamEyeROpen:1,ParamEyeLSmile:0,ParamEyeRSmile:0,ParamEyeBallX:0,ParamEyeBallY:0,ParamBrowLForm:1,ParamBrowRForm:1,ParamMouthForm:0.1,ParamMouthOpenY:0.9,ParamBodyAngleX:0,ParamBodyAngleY:4,ParamBodyAngleZ:0,ParamBreath:0.65,ParamArmLA:0.25,ParamArmRA:0.25}},
+  thinking:{params:{ParamAngleX:-6,ParamAngleY:-2,ParamAngleZ:2,ParamCheek:0,ParamEyeLOpen:0.55,ParamEyeROpen:0.75,ParamEyeLSmile:0,ParamEyeRSmile:0,ParamEyeBallX:0.35,ParamEyeBallY:0.15,ParamBrowLForm:-0.45,ParamBrowRForm:0.55,ParamMouthForm:-0.15,ParamMouthOpenY:0,ParamBodyAngleX:-3,ParamBodyAngleY:-2,ParamBodyAngleZ:0,ParamBreath:0.5,ParamArmLA:0.15,ParamArmRA:0}},
+  angry:{params:{ParamAngleX:0,ParamAngleY:-3,ParamAngleZ:0,ParamCheek:0.1,ParamEyeLOpen:0.9,ParamEyeROpen:0.9,ParamEyeLSmile:0,ParamEyeRSmile:0,ParamEyeBallX:0,ParamEyeBallY:0,ParamBrowLForm:-0.95,ParamBrowRForm:-0.95,ParamMouthForm:-0.55,ParamMouthOpenY:0.15,ParamBodyAngleX:0,ParamBodyAngleY:-3,ParamBodyAngleZ:0,ParamBreath:0.75,ParamArmLA:0.2,ParamArmRA:0.2}},
+  embarrassed:{params:{ParamAngleX:-10,ParamAngleY:-6,ParamAngleZ:3,ParamCheek:1,ParamEyeLOpen:0.8,ParamEyeROpen:0.8,ParamEyeLSmile:0.4,ParamEyeRSmile:0.4,ParamEyeBallX:-0.35,ParamEyeBallY:-0.15,ParamBrowLForm:0.3,ParamBrowRForm:0.3,ParamMouthForm:0.3,ParamMouthOpenY:0,ParamBodyAngleX:-5,ParamBodyAngleY:-3,ParamBodyAngleZ:2,ParamBreath:0.6,ParamArmLA:0.08,ParamArmRA:0.08}},
+  sleepy:{params:{ParamAngleX:3,ParamAngleY:0,ParamAngleZ:3,ParamCheek:0,ParamEyeLOpen:0.06,ParamEyeROpen:0.06,ParamEyeLSmile:0,ParamEyeRSmile:0,ParamEyeBallX:0,ParamEyeBallY:-0.15,ParamBrowLForm:-0.08,ParamBrowRForm:-0.08,ParamMouthForm:0,ParamMouthOpenY:0.08,ParamBodyAngleX:2,ParamBodyAngleY:0,ParamBodyAngleZ:0,ParamBreath:0.3,ParamArmLA:-0.15,ParamArmRA:-0.15}},
+  tipsy:{params:{ParamAngleX:10,ParamAngleY:5,ParamAngleZ:6,ParamCheek:0.85,ParamEyeLOpen:0.4,ParamEyeROpen:0.4,ParamEyeLSmile:0.6,ParamEyeRSmile:0.6,ParamEyeBallX:0.15,ParamEyeBallY:-0.08,ParamBrowLForm:0.2,ParamBrowRForm:0.2,ParamMouthForm:0.5,ParamMouthOpenY:0.08,ParamBodyAngleX:5,ParamBodyAngleY:3,ParamBodyAngleZ:2,ParamBreath:0.55,ParamArmLA:0,ParamArmRA:0}},
 };
 
 // ── Global state ──

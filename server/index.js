@@ -66,15 +66,28 @@ const EMOTIONS = {
 };
 
 const EMOTION_KEYWORDS = {
-  happy:        ['开心','高兴','好耶','太好了','棒','厉害','成功','喜欢','超','nice','great','happy','耶','哈哈','真好','真棒','完美','太棒了','好开心','最爱','万岁','恭喜','🎉'],
-  veryHappy:    ['超开心','超级','最棒','太厉害了','绝了','兴奋','激动','感动','最高','yyds','amazing'],
-  sad:          ['难过','伤心','哭','失败','不好','对不起','错了','sad','cry','sorry','呜呜','难受','心痛','委屈','不开心','沮丧','悲伤','😭','💔'],
-  surprised:    ['真的','惊讶','意外','啥','what','really','wow','啊？','诶','咦','不会吧','假的吧','不可能','吃惊','震惊','竟然','居然','天哪','😲','😱'],
-  thinking:     ['嗯','想','思考','考虑','问题','怎么','how','think','hmm','琢磨','让我想想','为什么','怎么办','🤔'],
-  angry:        ['气','可恶','生气','烦','angry','mad','讨厌','烦死了','无语','真是的','过分','好气','怒','🔥','💢'],
-  embarrassed:  ['害羞','不好意思','羞','blush','shy','难为情','丢人','脸红','尴尬','😳'],
-  sleepy:       ['困','累','睡觉','sleepy','tired','zzz','好困','困死','累了','疲惫','晚安','😴','💤'],
+  happy:        ['开心','高兴','好耶','太好了','棒','厉害','成功','喜欢','超','nice','great','happy','耶','哈哈','真好','真棒','完美','太棒了','好开心','最爱','万岁','恭喜','🎉','嘻嘻','诶嘿','喵呜~'],
+  veryHappy:    ['超开心','超级','最棒','太厉害了','绝了','兴奋','激动','感动','最高','yyds','amazing','狂喜','嗷呜'],
+  sad:          ['难过','伤心','哭','失败','不好','对不起','错了','sad','cry','sorry','呜呜','难受','心痛','委屈','不开心','沮丧','悲伤','😭','💔','QAQ','TAT','呜喵','嘤嘤'],
+  surprised:    ['真的','惊讶','意外','啥','what','really','wow','啊？','诶','咦','不会吧','假的吧','不可能','吃惊','震惊','竟然','居然','天哪','😲','😱','诶诶','呜哇'],
+  thinking:     ['嗯','想','思考','考虑','问题','怎么','how','think','hmm','琢磨','让我想想','为什么','怎么办','🤔','唔…'],
+  angry:        ['气','可恶','生气','烦','angry','mad','讨厌','烦死了','无语','真是的','过分','好气','怒','🔥','💢','哼！','呸','可恶喵','坏'],
+  embarrassed:  ['害羞','不好意思','羞','blush','shy','难为情','丢人','脸红','尴尬','😳','呀~','///','⁄⁄'],
+  sleepy:       ['困','累','睡觉','sleepy','tired','zzz','好困','困死','累了','疲惫','晚安','😴','💤','哈欠','呼…'],
   tipsy:        ['酒','喝','干杯','drink','wine','cheers','微醺','醉了','喝酒','干杯','🍺','🍷','🥂'],
+};
+
+// ── Explicit emotion tag → emotion ID (heavy weight, 10 points each) ──
+const EMOTION_TAGS = {
+  happy:        ['[开心]','[happy]','（开心）','(开心)','【开心】','[高兴]'],
+  veryHappy:    ['[超开心]','[狂喜]','（超开心）','(狂喜)','【狂喜】'],
+  sad:          ['[难过]','[sad]','（难过）','(伤心)','【难过】','[伤心]'],
+  surprised:    ['[惊讶]','[surprised]','（惊讶）','(震惊)','【惊讶】','[震惊]'],
+  thinking:     ['[思考]','[thinking]','（思考）','(沉思)','【思考】'],
+  angry:        ['[生气]','[angry]','（生气）','(愤怒)','【生气】','[愤怒]'],
+  embarrassed:  ['[害羞]','[embarrassed]','（害羞）','(羞涩)','【害羞】'],
+  sleepy:       ['[困]','[sleepy]','（困）','(困倦)','【困】','[困倦]'],
+  tipsy:        ['[微醺]','[tipsy]','（微醺）','(醉了)','【微醺】'],
 };
 
 // ──────────────────────────────────────────────
@@ -103,12 +116,24 @@ function broadcast(data) {
 // Emotion analysis engine
 // ──────────────────────────────────────────────
 
+const TAG_WEIGHT = 10;  // Explicit tags are 10x stronger than keywords
+
 function analyzeEmotion(text) {
   if (!text?.trim()) return 'neutral';
 
   const lower = text.toLowerCase();
   const scores = Object.fromEntries(Object.keys(EMOTION_KEYWORDS).map(k => [k, 0]));
 
+  // ── Phase 1: explicit emotion tags (heaviest weight) ──
+  for (const [emotion, tags] of Object.entries(EMOTION_TAGS)) {
+    for (const tag of tags) {
+      if (lower.includes(tag.toLowerCase())) {
+        scores[emotion] += TAG_WEIGHT;
+      }
+    }
+  }
+
+  // ── Phase 2: keyword matching ──
   for (const [emotion, keywords] of Object.entries(EMOTION_KEYWORDS)) {
     for (const kw of keywords) {
       const lkw = kw.toLowerCase();
@@ -120,8 +145,31 @@ function analyzeEmotion(text) {
     }
   }
 
-  // Negation handling
-  for (const neg of ['不', '没', '别']) {
+  // ── Phase 3: catgirl tone markers ──
+  // Tilde 〜/~
+  const tildeCount = (text.match(/[〜~]/g) || []).length;
+  if (tildeCount >= 1) {
+    if (scores.happy > 0) scores.happy += tildeCount * 1.5;
+    if (scores.embarrassed > 0) scores.embarrassed += tildeCount * 1.5;
+    if (scores.tipsy > 0) scores.tipsy += tildeCount * 1;
+  }
+
+  // Heart markers ♥ ♡
+  const heartCount = (text.match(/[♥♡💕]/g) || []).length;
+  if (heartCount > 0) {
+    scores.happy += heartCount * 1.5;
+    if (scores.embarrassed > 0) scores.embarrassed += heartCount * 2;
+  }
+
+  // Cat meow 喵 / にゃ
+  const nyaCount = (text.match(/喵|にゃ|nya/gi) || []).length;
+  if (nyaCount >= 1) {
+    if (scores.happy > 0) scores.happy += nyaCount * 0.5;
+    if (scores.surprised > 0) scores.surprised += nyaCount * 0.3;
+  }
+
+  // ── Phase 4: negation handling ──
+  for (const neg of ['不', '没', '别', '才不']) {
     for (const [emotion] of Object.entries(EMOTION_KEYWORDS)) {
       for (const kw of EMOTION_KEYWORDS[emotion]) {
         if (lower.includes(neg + kw.toLowerCase())) {
@@ -131,7 +179,7 @@ function analyzeEmotion(text) {
     }
   }
 
-  // Punctuation amplification
+  // ── Phase 5: punctuation amplification ──
   const excl = (text.match(/[！!]/g) || []).length;
   if (excl >= 2) {
     for (const e of ['happy', 'veryHappy', 'angry', 'surprised']) {
@@ -141,6 +189,13 @@ function analyzeEmotion(text) {
 
   const q = (text.match(/[？?]/g) || []).length;
   if (q >= 1) scores.thinking += q * 2;
+
+  // Triple dots (…… or ...) → thinking / embarrassed
+  const dots = (text.match(/\.{3,}|…{2,}/g) || []).length;
+  if (dots > 0) {
+    scores.thinking += dots;
+    scores.embarrassed += dots * 0.5;
+  }
 
   let best = 'neutral', bestScore = 0;
   for (const [e, s] of Object.entries(scores)) {
