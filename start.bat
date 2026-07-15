@@ -5,19 +5,18 @@ title claude-emotion-link
 echo.
 echo   ======================================
 echo         claude-emotion-link
-echo         Live2D 情绪联动 — 一键启动
+echo         Live2D Emotion Viewer
 echo   ======================================
 echo.
 
-:: ── 检查 Node.js ──
+:: Check Node.js
 where node >nul 2>nul
 if %errorlevel% neq 0 (
-    echo   [X] 没有找到 Node.js
+    echo   [X] Node.js not found
     echo.
-    echo   请先安装 Node.js：
+    echo   Please install Node.js first:
     echo   https://nodejs.org
-    echo   选左边的 LTS 版本下载安装即可
-    echo   装完重新双击 start.bat
+    echo   Download the LTS version, install, then run this script again.
     echo.
     pause
     exit
@@ -25,32 +24,32 @@ if %errorlevel% neq 0 (
 
 for /f "tokens=*" %%v in ('node -v') do echo   [OK] Node.js %%v
 
-:: ── 释放端口 ──
-for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":3456 " 2^>nul') do (
-    echo   [→] 释放端口 3456...
+:: Kill any process on port 3456
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":3456"') do (
     taskkill /F /PID %%a >nul 2>nul
 )
+
+:: Wait a moment
 timeout /t 1 /nobreak >nul
 
-:: ── 启动 ──
-echo   [→] 正在启动...
+:: Start
+echo   [..] Starting server...
 echo.
-echo   浏览器打开后稍等几秒让模型加载
-echo   看到 Hiyori 出现就说明跑通了
+echo   Browser will open shortly. Wait for the model to load.
 echo.
-echo   按空格键 = 演示模式
-echo   按 0-9   = 切换表情
+echo   Controls:
+echo     Space = Demo mode (auto-cycle emotions)
+echo     0-9   = Switch emotion directly
 echo   ======================================
 echo.
 
-:: 先启动服务，再打开浏览器
-start "" /b node server\index.js
-timeout /t 2 /nobreak >nul
+:: Open browser first (it will show connection error until server starts)
 start "" http://localhost:3456
 
-echo   服务已在后台运行，可以关闭此窗口
+:: Start the server in foreground
+echo   Starting server on http://localhost:3456
+echo   Press Ctrl+C to stop
 echo.
+node server\index.js
 
-:: 等待一下确认服务启动成功再退出
-timeout /t 3 /nobreak >nul
-exit
+pause
