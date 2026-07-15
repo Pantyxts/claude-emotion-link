@@ -696,13 +696,11 @@ async function loadModel() {
       autoInteract: false,
     });
 
-    // Center and scale
-    const sw = app.screen.width;
-    const sh = app.screen.height;
+    // Center and scale — Hiyori needs much smaller scale than Mao
     model.x = sw / 2;
-    model.y = sh - 10;
-    model.scale.set(0.95);   // Hiyori fits well at 0.95
-    model.anchor.set(0.5, 1);
+    model.y = sh / 2;
+    model.scale.set(0.28);
+    model.anchor.set(0.5, 0.5);
 
     app.stage.addChild(model);
 

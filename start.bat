@@ -1,45 +1,56 @@
 @echo off
-chcp 65001 >nul
+cd /d "%~dp0"
 title claude-emotion-link
 
 echo.
-echo   ╭──────────────────────────────────────╮
-echo   │      ✦ claude-emotion-link ✦         │
-echo   │    Live2D 情绪联动 — 一键启动         │
-echo   ╰──────────────────────────────────────╯
+echo   ======================================
+echo         claude-emotion-link
+echo         Live2D 情绪联动 — 一键启动
+echo   ======================================
 echo.
 
 :: ── 检查 Node.js ──
 where node >nul 2>nul
 if %errorlevel% neq 0 (
-    echo   [✗] 没有找到 Node.js，请先安装：
-    echo       https://nodejs.org （选 LTS 版本就行）
-    echo       装完之后重新双击这个脚本即可。
+    echo   [X] 没有找到 Node.js
+    echo.
+    echo   请先安装 Node.js：
+    echo   https://nodejs.org
+    echo   选左边的 LTS 版本下载安装即可
+    echo   装完重新双击 start.bat
     echo.
     pause
-    exit /b 1
+    exit
 )
 
-for /f "tokens=*" %%v in ('node -v') do set NODE_VER=%%v
-echo   [✓] Node.js 已找到：%NODE_VER%
+for /f "tokens=*" %%v in ('node -v') do echo   [OK] Node.js %%v
 
-:: ── 检查端口是否被占用 ──
-netstat -ano 2>nul | findstr ":3456 " >nul
-if %errorlevel% equ 0 (
-    echo   [!] 端口 3456 已被占用，可能之前的服务还在跑
-    echo       正在尝试释放端口...
-    for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":3456 "') do (
-        taskkill /F /PID %%a >nul 2>nul
-    )
-    timeout /t 2 /nobreak >nul
-    echo   [✓] 端口已释放
+:: ── 释放端口 ──
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":3456 " 2^>nul') do (
+    echo   [→] 释放端口 3456...
+    taskkill /F /PID %%a >nul 2>nul
 )
+timeout /t 1 /nobreak >nul
 
-:: ── 启动服务 ──
-echo   [→] 正在启动服务...
+:: ── 启动 ──
+echo   [→] 正在启动...
 echo.
+echo   浏览器打开后稍等几秒让模型加载
+echo   看到 Hiyori 出现就说明跑通了
+echo.
+echo   按空格键 = 演示模式
+echo   按 0-9   = 切换表情
+echo   ======================================
+echo.
+
+:: 先启动服务，再打开浏览器
+start "" /b node server\index.js
+timeout /t 2 /nobreak >nul
 start "" http://localhost:3456
 
-node server\index.js
+echo   服务已在后台运行，可以关闭此窗口
+echo.
 
-pause
+:: 等待一下确认服务启动成功再退出
+timeout /t 3 /nobreak >nul
+exit
