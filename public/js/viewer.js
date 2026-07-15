@@ -549,8 +549,12 @@ function spawnEffects(effects) {
 }
 
 // ──────────────────────────────────────────────
-// SSE connection
+// SSE connection (with exponential backoff)
 // ──────────────────────────────────────────────
+
+let sseRetries = 0;
+const SSE_MAX_RETRIES = 10;
+let sseReconnectTimer = null;
 
 function connectSSE() {
   const es = new EventSource('/events');
@@ -565,14 +569,100 @@ function connectSSE() {
   };
 
   es.onopen = function () {
+    sseRetries = 0;
     if (els.dot) els.dot.className = 'status-dot connected';
     if (els.label) els.label.textContent = '✦ Live';
   };
 
   es.onerror = function () {
-    if (els.dot) els.dot.className = 'status-dot error';
-    if (els.label) els.label.textContent = 'Disconnected';
+    es.close();
+    sseRetries++;
+
+    if (sseRetries <= SSE_MAX_RETRIES) {
+      // Exponential backoff: 1s, 2s, 4s, 8s... max 30s
+      const delay = Math.min(1000 * Math.pow(2, sseRetries - 1), 30000);
+      if (els.dot) els.dot.className = 'status-dot error';
+      if (els.label) els.label.textContent = '重连中 (' + sseRetries + '/' + SSE_MAX_RETRIES + ')...';
+
+      clearTimeout(sseReconnectTimer);
+      sseReconnectTimer = setTimeout(connectSSE, delay);
+    } else {
+      if (els.dot) els.dot.className = 'status-dot error';
+      if (els.label) els.label.textContent = '连接失败';
+    }
   };
+}
+
+// ──────────────────────────────────────────────
+// Demo mode — auto-cycle emotions
+// ──────────────────────────────────────────────
+
+let demoMode = false;
+let demoTimer = null;
+let demoIndex = 0;
+let demoInterval = 3000;
+const DEMO_EMOTIONS = ['happy', 'surprised', 'thinking', 'veryHappy', 'embarrassed', 'sad', 'angry', 'sleepy', 'tipsy', 'neutral'];
+
+function toggleDemo() {
+  demoMode = !demoMode;
+
+  if (demoMode) {
+    demoIndex = 0;
+    if (els.demoBtn) els.demoBtn.textContent = '⏸ 停止演示';
+    if (els.demoIndicator) els.demoIndicator.style.display = 'flex';
+    cycleDemo();
+  } else {
+    if (els.demoBtn) els.demoBtn.textContent = '▶ 演示模式';
+    if (els.demoIndicator) els.demoIndicator.style.display = 'none';
+    clearTimeout(demoTimer);
+    demoTimer = null;
+    setEmotion('neutral', 'demo-stop');
+  }
+}
+
+function cycleDemo() {
+  if (!demoMode) return;
+  const emotion = DEMO_EMOTIONS[demoIndex % DEMO_EMOTIONS.length];
+  setEmotion(emotion, 'demo');
+  demoIndex++;
+  demoTimer = setTimeout(cycleDemo, demoInterval);
+}
+
+// ──────────────────────────────────────────────
+// Keyboard shortcuts
+// ──────────────────────────────────────────────
+
+const KEY_EMOTION_MAP = {
+  '0': 'neutral',
+  '1': 'happy',
+  '2': 'veryHappy',
+  '3': 'sad',
+  '4': 'surprised',
+  '5': 'thinking',
+  '6': 'angry',
+  '7': 'embarrassed',
+  '8': 'sleepy',
+  '9': 'tipsy',
+};
+
+function initKeyboard() {
+  document.addEventListener('keydown', (e) => {
+    // Don't trigger when typing in input fields
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+    // Space to toggle demo mode
+    if (e.code === 'Space') {
+      e.preventDefault();
+      toggleDemo();
+      return;
+    }
+
+    // Digit keys 0-9 for emotions
+    if (KEY_EMOTION_MAP[e.key] && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      if (demoMode) toggleDemo(); // Exit demo mode when manually selecting
+      setEmotion(KEY_EMOTION_MAP[e.key], 'keyboard');
+    }
+  });
 }
 
 // ──────────────────────────────────────────────
@@ -628,8 +718,19 @@ async function loadModel() {
   } catch (err) {
     console.error('[claude-emotion-link] Model load failed:', err);
     if (els.loading) {
-      els.loading.querySelector('.loading-text').textContent = '加载失败';
+      els.loading.querySelector('.loading-text').textContent = '模型加载失败';
       els.loading.querySelector('.loading-sub').textContent = err.message;
+      // Add a retry hint
+      const retryHint = document.createElement('div');
+      retryHint.style.cssText = 'margin-top:16px;font-size:12px;color:#3a5080;cursor:pointer;text-decoration:underline';
+      retryHint.textContent = '点击此处重试';
+      retryHint.onclick = () => {
+        els.loading.querySelector('.loading-text').textContent = '正在加载 Live2D 模型…';
+        els.loading.querySelector('.loading-sub').textContent = 'Hiyori (Cubism 4) · 28 Parameters';
+        if (retryHint.parentNode) retryHint.parentNode.removeChild(retryHint);
+        loadModel().catch(() => {});
+      };
+      els.loading.appendChild(retryHint);
     }
     throw err;
   }
@@ -652,20 +753,50 @@ function init() {
   els.badge = document.getElementById('emotion-badge-top');
   els.badgeIcon = document.getElementById('badge-icon');
   els.badgeText = document.getElementById('badge-text');
+  els.demoBtn = document.getElementById('demo-btn');
+  els.demoIndicator = document.getElementById('demo-indicator');
 
   if (!els.canvas) {
     console.error('[claude-emotion-link] Canvas element not found');
     return;
   }
 
+  // Demo button click handler
+  if (els.demoBtn) {
+    els.demoBtn.addEventListener('click', toggleDemo);
+  }
+
   // Expose setEmotion globally for SSE injection script
   window.setEmotion = setEmotion;
+
+  // Expose demo toggle globally
+  window.toggleDemo = toggleDemo;
 
   // Expose SSE connected callback
   window.onSSEConnected = function () {
     if (els.dot) els.dot.className = 'status-dot connected';
     if (els.label) els.label.textContent = '✦ Live';
   };
+
+  // Load server config (demo settings)
+  fetch('/config')
+    .then(r => r.json())
+    .then(cfg => {
+      if (cfg.demo) {
+        demoInterval = cfg.demo.intervalMs || 3000;
+        // Auto-start demo if configured
+        if (cfg.demo.enabled) toggleDemo();
+      }
+    })
+    .catch(() => {});
+
+  // Check URL param for demo mode
+  if (window.location.search.includes('demo')) {
+    setTimeout(() => toggleDemo(), 1500); // Delay to let model load first
+  }
+
+  // Init keyboard shortcuts
+  initKeyboard();
 
   // Start loading
   loadModel().catch(() => {});
@@ -676,7 +807,7 @@ function init() {
   // Initialise magic tail canvas
   initTailCanvas();
 
-  console.log('[claude-emotion-link] Viewer v2.1 initialised (Hiyori C4, 28 params + Magic Tail)');
+  console.log('[claude-emotion-link] Viewer v2.2 initialised (Hiyori C4, 28 params + Magic Tail + Demo + KB shortcuts)');
 }
 
 // ──────────────────────────────────────────────

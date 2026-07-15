@@ -1,0 +1,13 @@
+{
+  "port": 3456,
+  "model": {
+    "path": "models/hiyori_free_t08/hiyori_free_t08.model3.json",
+    "name": "Hiyori",
+    "scale": 0.95
+  },
+  "demo": {
+    "enabled": false,
+    "intervalMs": 3000,
+    "emotions": ["happy", "surprised", "thinking", "veryHappy", "embarrassed", "sad", "angry", "sleepy", "tipsy", "neutral"]
+  }
+}

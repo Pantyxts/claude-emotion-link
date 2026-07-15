@@ -3,61 +3,83 @@
 <head><meta charset="utf-8"><title>Core Test — Hiyori</title></head>
 <body>
 <h3>Live2D Core Test — Hiyori (Cubism 4)</h3>
-<pre id="log"></pre>
+<pre id="log" style="font-family:monospace;font-size:13px;line-height:1.6"></pre>
+<script src="lib/live2dcubismcore.min.js"></script>
 <script>
 const log = document.getElementById('log');
 function msg(s) { log.textContent += s + '\n'; }
+function ok(s)  { msg('   ✓ ' + s); }
+function fail(s){ msg('   ✗ ' + s); }
 
-msg('1. Loading Cubism 4 Core...');
-if (typeof Live2DCubismCore !== 'undefined') {
-  const C = Live2DCubismCore;
-  msg('   ✓ Live2DCubismCore loaded');
-  msg('   Version: ' + (C.Version ? 'OK' : 'MISSING'));
-  msg('   Moc.fromArrayBuffer: ' + (C.Moc && C.Moc.fromArrayBuffer ? '✓' : '✗'));
-  msg('   Model.fromMoc: ' + (C.Model && C.Model.fromMoc ? '✓' : '✗'));
-} else {
-  msg('   ✗ Live2DCubismCore NOT FOUND');
+// Wait for external scripts to load, then run tests
+window.addEventListener('DOMContentLoaded', () => {
+  // Small delay to ensure all <script> tags have executed
+  setTimeout(runTests, 100);
+});
+
+async function runTests() {
+  msg('=== Live2D Core Diagnostic ===');
+  msg('');
+
+  // 1. Check Cubism Core
+  msg('1. Cubism Core status:');
+  if (typeof Live2DCubismCore !== 'undefined') {
+    const C = Live2DCubismCore;
+    ok('Live2DCubismCore loaded');
+    msg('   Version: ' + (typeof C.Version === 'function' ? C.Version() : 'N/A'));
+    msg('   Has Moc: ' + (typeof C.Moc === 'function'));
+    msg('   Has Model: ' + (typeof C.Model === 'function'));
+  } else {
+    fail('Live2DCubismCore NOT FOUND — check lib/live2dcubismcore.min.js');
+    return;
+  }
+
+  msg('');
+
+  // 2. Check model files exist
+  msg('2. Model file accessibility:');
+  const files = [
+    'models/hiyori_free_t08/hiyori_free_t08.model3.json',
+    'models/hiyori_free_t08/hiyori_free_t08.moc3',
+    'models/hiyori_free_t08/hiyori_free_t08.2048/texture_00.png',
+  ];
+  for (const f of files) {
+    try {
+      const r = await fetch(f);
+      if (r.ok) {
+        ok(f.split('/').pop() + ' (' + (r.headers.get('content-length') || '?') + ' bytes)');
+      } else {
+        fail(f.split('/').pop() + ' HTTP ' + r.status);
+      }
+    } catch (e) {
+      fail(f.split('/').pop() + ' — ' + e.message);
+    }
+  }
+
+  msg('');
+
+  // 3. Actually load moc3 through Core
+  msg('3. Moc3 parsing test:');
+  try {
+    const r = await fetch('models/hiyori_free_t08/hiyori_free_t08.moc3');
+    const buf = await r.arrayBuffer();
+    msg('   moc3 size: ' + buf.byteLength + ' bytes');
+
+    const C = Live2DCubismCore;
+    const moc = C.Moc.fromArrayBuffer(buf);
+    ok('Moc.fromArrayBuffer() passed');
+
+    const model = C.Model.fromMoc(moc);
+    ok('Model.fromMoc() passed');
+
+  } catch (e) {
+    fail('Core error: ' + e.message);
+    if (e.stack) msg('   ' + e.stack.split('\n').slice(0, 2).join('\n   '));
+  }
+
+  msg('');
+  msg('=== Test complete ===');
 }
-
-msg('');
-msg('2. Loading Hiyori texture...');
-fetch('models/hiyori_free_t08/hiyori_free_t08.2048/texture_00.png')
-  .then(r => msg('   ✓ texture: ' + r.status + ' (' + (r.headers.get('content-length')||'?') + ' bytes)'))
-  .catch(e => msg('   ✗ texture: ' + e.message));
-
-msg('');
-msg('3. Loading hiyori_free_t08.moc3...');
-fetch('models/hiyori_free_t08/hiyori_free_t08.moc3')
-  .then(r => msg('   ✓ moc3: ' + r.status + ' (' + (r.headers.get('content-length')||'?') + ' bytes)'))
-  .then(() => {
-    msg('');
-    msg('4. Testing Moc.fromArrayBuffer...');
-    fetch('models/hiyori_free_t08/hiyori_free_t08.moc3')
-      .then(r => r.arrayBuffer())
-      .then(buf => {
-        msg('   ✓ ArrayBuffer: ' + buf.byteLength + ' bytes');
-        try {
-          const C = Live2DCubismCore;
-          const moc = C.Moc.fromArrayBuffer(buf);
-          msg('   ✓ Moc.fromArrayBuffer SUCCESS');
-          const model = C.Model.fromMoc(moc);
-          msg('   ✓ Model.fromMoc SUCCESS');
-          const count = C.Parameters.getCount(model);
-          msg('   Parameter count: ' + count);
-          // List all parameter IDs
-          const ids = [];
-          for (let i = 0; i < count; i++) {
-            ids.push(C.Parameters.getId(model, i));
-          }
-          msg('   Parameters: ' + ids.join(', '));
-        } catch(e) {
-          msg('   ✗ Core error: ' + e.message);
-          msg('   Stack: ' + (e.stack || '').split('\n').slice(0,3).join('\n  '));
-        }
-      })
-      .catch(e => msg('   ✗ fetch error: ' + e.message));
-  })
-  .catch(e => msg('   ✗ moc3: ' + e.message));
 </script>
 </body>
 </html>

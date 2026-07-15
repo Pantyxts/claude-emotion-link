@@ -308,6 +308,69 @@ html, body {
   color: #3a5080;
 }
 
+/* ── Demo Controls ──────────────────────────── */
+.demo-controls {
+  position: absolute;
+  bottom: 16px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 3;
+}
+
+.demo-btn {
+  padding: 6px 16px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #8ab4f0;
+  background: rgba(10, 14, 39, 0.7);
+  border: 1px solid rgba(100, 180, 255, 0.2);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.3s;
+  backdrop-filter: blur(8px);
+}
+
+.demo-btn:hover {
+  border-color: rgba(100, 180, 255, 0.5);
+  color: #b8d4ff;
+  background: rgba(20, 28, 60, 0.8);
+  box-shadow: 0 0 16px rgba(100, 180, 255, 0.1);
+}
+
+.demo-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #88cc88;
+}
+
+.demo-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #55cc88;
+  animation: dotPulse 1.5s ease-in-out infinite;
+}
+
+.kb-hint {
+  font-size: 11px;
+  color: #2a4070;
+}
+
+@media (max-width: 540px) {
+  .demo-controls {
+    bottom: 8px;
+    right: 8px;
+    gap: 8px;
+  }
+  .kb-hint {
+    display: none;
+  }
+}
+
 /* ── Logo / Corner ──────────────────────────── */
 .corner-info {
   position: absolute;

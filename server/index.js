@@ -33,10 +33,20 @@ const path = require('path');
 // Configuration
 // ──────────────────────────────────────────────
 
-const PORT = 3456;
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const PUBLIC_DIR    = path.join(PROJECT_ROOT, 'public');
 const MODEL_DIR     = path.join(PUBLIC_DIR, 'models');
+
+// Load config.json (with fallback defaults)
+let config = { port: 3456, model: {}, demo: {} };
+try {
+  const configRaw = fs.readFileSync(path.join(PROJECT_ROOT, 'config.json'), 'utf-8');
+  config = JSON.parse(configRaw);
+} catch {
+  console.log('  [!] config.json 未找到或格式有误，使用默认配置');
+}
+
+const PORT = config.port || 3456;
 
 // ──────────────────────────────────────────────
 // Emotion definitions
@@ -294,6 +304,16 @@ const server = http.createServer((req, res) => {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ emotion }));
     });
+    return;
+  }
+
+  // ── GET /config ───────────────────────────
+  if (pathname === '/config') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      demo: config.demo || {},
+      model: { name: config.model?.name || 'Hiyori' },
+    }));
     return;
   }
 
