@@ -197,7 +197,7 @@ async function loadModel() {
   model.x = sw / 2;
   model.y = sh / 2;
   model.scale.set(MODEL_SCALE);
-  model.anchor.set(0.5, 0.5);
+  model.anchor.set(0.5, 0.42);
 
   app.stage.addChild(model);
 

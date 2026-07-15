@@ -250,6 +250,20 @@ let targetParams = {};
 let animFrame = null;
 let animating = false;
 
+// ── Model pan & zoom state ──
+let modelOffsetX = 0;     // drag X offset from center
+let modelOffsetY = 0;     // drag Y offset from center
+let modelZoom = 1.0;      // extra zoom multiplier on top of MODEL_SCALE
+let isDragging = false;
+let dragStartX = 0;
+let dragStartY = 0;
+let dragStartModelX = 0;
+let dragStartModelY = 0;
+
+const ZOOM_MIN = 0.3;     // minimum zoom
+const ZOOM_MAX = 3.0;     // maximum zoom
+const ZOOM_STEP = 0.08;   // scroll wheel step
+
 // Tail animation state
 let tailCtx = null;
 let tailCanvas = null;
@@ -785,16 +799,211 @@ function initKeyboard() {
 }
 
 // ──────────────────────────────────────────────
+// Model pan & zoom (mouse drag + scroll)
+// ──────────────────────────────────────────────
+
+/** Apply current offset + zoom to the model */
+function applyModelTransform() {
+  if (!model || !app) return;
+  const sw = app.screen.width;
+  const sh = app.screen.height;
+  model.x = sw / 2 + modelOffsetX;
+  model.y = sh / 2 + modelOffsetY;
+  model.scale.set(MODEL_SCALE * modelZoom);
+}
+
+/** Update zoom indicator badge */
+function updateZoomBadge() {
+  if (els.zoomBadge) {
+    const pct = Math.round(modelZoom * 100);
+    els.zoomBadge.textContent = pct + '%';
+    // Show badge briefly when zooming
+    els.zoomBadge.style.opacity = '1';
+    clearTimeout(els._zoomBadgeTimer);
+    els._zoomBadgeTimer = setTimeout(() => {
+      if (els.zoomBadge) els.zoomBadge.style.opacity = '0';
+    }, 1500);
+  }
+}
+
+let _viewURLTimer = null;
+function updateViewURL() {
+  // Throttle to max once per 200ms
+  if (_viewURLTimer) return;
+  _viewURLTimer = setTimeout(() => {
+    _viewURLTimer = null;
+    const url = new URL(window.location);
+    url.searchParams.set('model', MODEL_PATH);
+    url.searchParams.set('scale', MODEL_SCALE);
+    url.searchParams.set('x', Math.round(modelOffsetX));
+    url.searchParams.set('y', Math.round(modelOffsetY));
+    url.searchParams.set('zoom', modelZoom.toFixed(2));
+    window.history.replaceState(null, '', url.toString());
+  }, 200);
+}
+
+function initPanZoom() {
+  if (!els.canvas) return;
+
+  const canvas = els.canvas;
+
+  // Cursor style
+  canvas.style.cursor = 'grab';
+
+  // ── Mouse down: start drag ──
+  canvas.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return; // Left button only
+    isDragging = true;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    dragStartModelX = modelOffsetX;
+    dragStartModelY = modelOffsetY;
+    canvas.style.cursor = 'grabbing';
+    e.preventDefault();
+  });
+
+  // ── Mouse move: drag model ──
+  window.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStartX;
+    const dy = e.clientY - dragStartY;
+    modelOffsetX = dragStartModelX + dx;
+    modelOffsetY = dragStartModelY + dy;
+    applyModelTransform();
+    updateViewURL();
+  });
+
+  // ── Mouse up: end drag ──
+  window.addEventListener('mouseup', () => {
+    if (!isDragging) return;
+    isDragging = false;
+    canvas.style.cursor = 'grab';
+  });
+
+  // ── Scroll wheel: zoom ──
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+
+    // Zoom toward cursor position
+    const rect = canvas.getBoundingClientRect();
+    const cx = e.clientX - rect.left - rect.width / 2;  // cursor pos relative to center
+    const cy = e.clientY - rect.top - rect.height / 2;
+
+    const oldZoom = modelZoom;
+    if (e.deltaY < 0) {
+      modelZoom = Math.min(ZOOM_MAX, modelZoom + ZOOM_STEP);
+    } else {
+      modelZoom = Math.max(ZOOM_MIN, modelZoom - ZOOM_STEP);
+    }
+
+    // Adjust offset so the point under cursor stays in place
+    const zoomRatio = modelZoom / oldZoom;
+    modelOffsetX = cx + (modelOffsetX - cx) * zoomRatio;
+    modelOffsetY = cy + (modelOffsetY - cy) * zoomRatio;
+
+    applyModelTransform();
+    updateZoomBadge();
+    updateViewURL();
+  }, { passive: false });
+
+  // ── Double-click: reset view ──
+  canvas.addEventListener('dblclick', () => {
+    modelOffsetX = 0;
+    modelOffsetY = 0;
+    modelZoom = 1.0;
+    applyModelTransform();
+    updateZoomBadge();
+    updateViewURL();
+    if (els.zoomBadge) {
+      els.zoomBadge.textContent = '已重置';
+      els.zoomBadge.style.opacity = '1';
+      clearTimeout(els._zoomBadgeTimer);
+      els._zoomBadgeTimer = setTimeout(() => {
+        if (els.zoomBadge) els.zoomBadge.style.opacity = '0';
+      }, 1200);
+    }
+  });
+
+  // Touch support
+  let touchStartDist = 0;
+  let touchStartZoom = 1;
+  let touchStartMidX = 0;
+  let touchStartMidY = 0;
+  let touchStartOffX = 0;
+  let touchStartOffY = 0;
+
+  canvas.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 1) {
+      isDragging = true;
+      dragStartX = e.touches[0].clientX;
+      dragStartY = e.touches[0].clientY;
+      dragStartModelX = modelOffsetX;
+      dragStartModelY = modelOffsetY;
+    } else if (e.touches.length === 2) {
+      isDragging = false;
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      touchStartDist = Math.sqrt(dx * dx + dy * dy);
+      touchStartZoom = modelZoom;
+      touchStartMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      touchStartMidY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      touchStartOffX = modelOffsetX;
+      touchStartOffY = modelOffsetY;
+    }
+    e.preventDefault();
+  }, { passive: false });
+
+  canvas.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 1 && isDragging) {
+      modelOffsetX = dragStartModelX + (e.touches[0].clientX - dragStartX);
+      modelOffsetY = dragStartModelY + (e.touches[0].clientY - dragStartY);
+      applyModelTransform();
+      updateViewURL();
+    } else if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const scale = touchStartDist > 0 ? dist / touchStartDist : 1;
+      modelZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, touchStartZoom * scale));
+      // Pan along with pinch center
+      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      modelOffsetX = touchStartOffX + (midX - touchStartMidX);
+      modelOffsetY = touchStartOffY + (midY - touchStartMidY);
+      applyModelTransform();
+      updateZoomBadge();
+      updateViewURL();
+    }
+    e.preventDefault();
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', () => {
+    isDragging = false;
+  });
+
+  // Re-apply transform when window resizes (PIXI resizeTo changes screen size)
+  window.addEventListener('resize', () => {
+    applyModelTransform();
+  });
+}
+
+// ──────────────────────────────────────────────
 // Model loading
 // ──────────────────────────────────────────────
 
 async function loadModel() {
-  // Read model path from URL params (for model switching), fall back to default
+  // Read model path, scale, position from URL params (for model switching + view state)
   const urlParams = new URLSearchParams(window.location.search);
   const modelFromUrl = urlParams.get('model');
   if (modelFromUrl) MODEL_PATH = modelFromUrl;
   const scaleFromUrl = parseFloat(urlParams.get('scale'));
   if (scaleFromUrl) MODEL_SCALE = scaleFromUrl;
+  const xFromUrl = parseFloat(urlParams.get('x'));
+  if (!isNaN(xFromUrl)) modelOffsetX = xFromUrl;
+  const yFromUrl = parseFloat(urlParams.get('y'));
+  if (!isNaN(yFromUrl)) modelOffsetY = yFromUrl;
+  const zoomFromUrl = parseFloat(urlParams.get('zoom'));
+  if (!isNaN(zoomFromUrl)) modelZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoomFromUrl));
 
   try {
     // Check if PIXI and Live2DModel are available
@@ -819,13 +1028,9 @@ async function loadModel() {
       autoInteract: false,
     });
 
-    // Center and scale
-    const sw = app.screen.width;
-    const sh = app.screen.height;
-    model.x = sw / 2;
-    model.y = sh / 2;
-    model.scale.set(MODEL_SCALE);
-    model.anchor.set(0.5, 0.5);
+    // Position model — anchor (0.5, 0.42) to favor upper body / face
+    model.anchor.set(0.5, 0.42);
+    applyModelTransform();
 
     app.stage.addChild(model);
 
@@ -885,6 +1090,7 @@ function init() {
   els.modelLoadBtn = document.getElementById('model-load-btn');
   els.modelPathInput = document.getElementById('model-path-input');
   els.modelFileInput = document.getElementById('model-file-input');
+  els.zoomBadge = document.getElementById('zoom-badge');
 
   if (!els.canvas) {
     console.error('[claude-emotion-link] Canvas element not found');
@@ -936,6 +1142,9 @@ function init() {
   // Init keyboard shortcuts
   initKeyboard();
 
+  // Init pan/zoom mouse interactions
+  initPanZoom();
+
   // Start loading
   loadModel().catch(() => {});
 
@@ -945,7 +1154,7 @@ function init() {
   // Initialise magic tail canvas
   initTailCanvas();
 
-  console.log('[claude-emotion-link] Viewer v2.2 initialised (Hiyori C4, 28 params + Magic Tail + Demo + KB shortcuts)');
+  console.log('[claude-emotion-link] Viewer v2.4 initialised (Hiyori C4, 28 params + Pan/Zoom + Popup + Demo)');
 }
 
 // ──────────────────────────────────────────────
