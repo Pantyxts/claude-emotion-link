@@ -5,11 +5,11 @@
  * A zero-dependency Node.js server that:
  *   • Serves the Live2D emotion viewer frontend
  *   • Provides a Server-Sent Events (SSE) endpoint for real-time updates
- *   • Exposes a REST API for emotion ingestion from Claude Code hooks
+ *   • Exposes a REST API for emotion ingestion from external tools
  *   • Serves Live2D model assets locally
  *
  * Architecture:
- *   Claude Code (postMessage hook) ──POST /emotion──→ Server ──SSE──→ Browser
+ *   External tool ──POST /emotion──→ Server ──SSE──→ Browser
  *
  * Requirements: Node.js >= 18 (no npm dependencies)
  *
@@ -248,43 +248,51 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // ── POST /emotion ─────────────────────────
-  if (pathname === '/emotion' && method === 'POST') {
-    let body = '';
-    req.on('data', c => body += c);
+  // ── Helpers: read JSON body safely (handles multi-byte UTF-8 across TCP chunks) ──
+  function readJSON(req, cb) {
+    const chunks = [];
+    req.on('data', c => chunks.push(c));
     req.on('end', () => {
       try {
-        const data = JSON.parse(body);
-        const emotion = data.emotion || analyzeEmotion(data.text || '');
-        currentEmotion = emotion;
-        if (data.text) currentText = data.text.slice(0, 200);
-
-        broadcast({ emotion, text: currentText, source: data.source || 'api', timestamp: Date.now() });
-
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: true, emotion }));
+        const body = Buffer.concat(chunks).toString('utf-8');
+        cb(null, JSON.parse(body));
       } catch (e) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: false, error: e.message }));
+        cb(e);
       }
+    });
+  }
+
+  // ── POST /emotion ─────────────────────────
+  if (pathname === '/emotion' && method === 'POST') {
+    readJSON(req, (err, data) => {
+      if (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: err.message }));
+        return;
+      }
+      const emotion = data.emotion || analyzeEmotion(data.text || '');
+      currentEmotion = emotion;
+      if (data.text) currentText = data.text.slice(0, 200);
+
+      broadcast({ emotion, text: currentText, source: data.source || 'api', timestamp: Date.now() });
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, emotion }));
     });
     return;
   }
 
   // ── POST /analyze ─────────────────────────
   if (pathname === '/analyze' && method === 'POST') {
-    let body = '';
-    req.on('data', c => body += c);
-    req.on('end', () => {
-      try {
-        const data = JSON.parse(body);
-        const emotion = analyzeEmotion(data.text || '');
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ emotion }));
-      } catch (e) {
+    readJSON(req, (err, data) => {
+      if (err) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: e.message }));
+        res.end(JSON.stringify({ error: err.message }));
+        return;
       }
+      const emotion = analyzeEmotion(data.text || '');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ emotion }));
     });
     return;
   }
@@ -341,7 +349,7 @@ server.listen(PORT, () => {
   console.log('');
   console.log('  ╭──────────────────────────────────────╮');
   console.log('  │      ✦ claude-emotion-link ✦         │');
-  console.log('  │      Live2D Emotion Bridge           │');
+  console.log('  │    Hiyori C4 · 28 params · Magic Tail │');
   console.log('  ├──────────────────────────────────────┤');
   console.log(`  │  🌐  Viewer  : http://localhost:${PORT}     │`);
   console.log(`  │  📡  SSE     : http://localhost:${PORT}/events│`);
@@ -349,8 +357,8 @@ server.listen(PORT, () => {
   console.log(`  │  📊  Status  : http://localhost:${PORT}/status│`);
   console.log('  ╰──────────────────────────────────────╯');
   console.log('');
-  console.log('  💡 Open http://localhost:' + PORT + ' in your browser');
-  console.log('     to see the Live2D emotion display.');
+  console.log('  💡 在浏览器中打开 http://localhost:' + PORT);
+  console.log('     查看 Live2D 情绪联动显示。');
   console.log('');
 });
 

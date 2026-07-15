@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Core Test — Hiyori</title></head>
+<body>
+<h3>Live2D Core Test — Hiyori (Cubism 4)</h3>
+<pre id="log"></pre>
+<script>
+const log = document.getElementById('log');
+function msg(s) { log.textContent += s + '\n'; }
+
+msg('1. Loading Cubism 4 Core...');
+if (typeof Live2DCubismCore !== 'undefined') {
+  const C = Live2DCubismCore;
+  msg('   ✓ Live2DCubismCore loaded');
+  msg('   Version: ' + (C.Version ? 'OK' : 'MISSING'));
+  msg('   Moc.fromArrayBuffer: ' + (C.Moc && C.Moc.fromArrayBuffer ? '✓' : '✗'));
+  msg('   Model.fromMoc: ' + (C.Model && C.Model.fromMoc ? '✓' : '✗'));
+} else {
+  msg('   ✗ Live2DCubismCore NOT FOUND');
+}
+
+msg('');
+msg('2. Loading Hiyori texture...');
+fetch('models/hiyori_free_t08/hiyori_free_t08.2048/texture_00.png')
+  .then(r => msg('   ✓ texture: ' + r.status + ' (' + (r.headers.get('content-length')||'?') + ' bytes)'))
+  .catch(e => msg('   ✗ texture: ' + e.message));
+
+msg('');
+msg('3. Loading hiyori_free_t08.moc3...');
+fetch('models/hiyori_free_t08/hiyori_free_t08.moc3')
+  .then(r => msg('   ✓ moc3: ' + r.status + ' (' + (r.headers.get('content-length')||'?') + ' bytes)'))
+  .then(() => {
+    msg('');
+    msg('4. Testing Moc.fromArrayBuffer...');
+    fetch('models/hiyori_free_t08/hiyori_free_t08.moc3')
+      .then(r => r.arrayBuffer())
+      .then(buf => {
+        msg('   ✓ ArrayBuffer: ' + buf.byteLength + ' bytes');
+        try {
+          const C = Live2DCubismCore;
+          const moc = C.Moc.fromArrayBuffer(buf);
+          msg('   ✓ Moc.fromArrayBuffer SUCCESS');
+          const model = C.Model.fromMoc(moc);
+          msg('   ✓ Model.fromMoc SUCCESS');
+          const count = C.Parameters.getCount(model);
+          msg('   Parameter count: ' + count);
+          // List all parameter IDs
+          const ids = [];
+          for (let i = 0; i < count; i++) {
+            ids.push(C.Parameters.getId(model, i));
+          }
+          msg('   Parameters: ' + ids.join(', '));
+        } catch(e) {
+          msg('   ✗ Core error: ' + e.message);
+          msg('   Stack: ' + (e.stack || '').split('\n').slice(0,3).join('\n  '));
+        }
+      })
+      .catch(e => msg('   ✗ fetch error: ' + e.message));
+  })
+  .catch(e => msg('   ✗ moc3: ' + e.message));
+</script>
+</body>
+</html>

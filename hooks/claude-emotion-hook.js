@@ -1,30 +1,20 @@
 #!/usr/bin/env node
 /**
- * claude-emotion-link — Claude Code Post-Message Hook
- * ====================================================
+ * emotion-link hook —— 情绪分析推送脚本
+ * ======================================
  *
- * Automatically triggered after each Claude Code response.
- * Analyses the assistant's output text for emotional content
- * and pushes the detected emotion to the claude-emotion-link
- * server for real-time Live2D expression updates.
+ * 从标准输入 / 环境变量 / CLI 参数读取文字，分析情绪后
+ * POST 到本地的 emotion-link 服务，触发 Live2D 表情切换。
  *
- * ─── Installation ───
- * In .claude/settings.local.json (project-local):
- *   {
- *     "hooks": {
- *       "postMessage": "node .claude/hooks/claude-emotion-hook.js"
- *     }
- *   }
+ * ─── 用法 ───
+ *   echo "好开心啊" | node hooks/claude-emotion-hook.js
+ *   node hooks/claude-emotion-hook.js --text "呜呜好难过"
  *
- * ─── Manual Usage ───
- *   echo "Your text here" | node hooks/claude-emotion-hook.js
- *   node hooks/claude-emotion-hook.js --text "Your text here"
- *
- * ─── How It Works ───
- *   1. Receives text from Claude Code (via stdin / env var / CLI arg)
- *   2. Runs keyword-based emotion analysis
- *   3. POSTs the result to http://localhost:3456/emotion
- *   4. The server broadcasts to all connected browser clients via SSE
+ * ─── 工作流程 ───
+ *   1. 读文字（stdin / LLM_MESSAGE_TEXT 环境变量 / --text 参数）
+ *   2. 关键词打分判断情绪
+ *   3. POST 到 http://localhost:3456/emotion
+ *   4. 服务端通过 SSE 推给所有浏览器客户端
  */
 
 const http = require('http');
@@ -92,7 +82,7 @@ function analyze(text) {
 // ─── POST to Server ───────────────────────────
 function postEmotion(emotion, text) {
   return new Promise((resolve) => {
-    const data = JSON.stringify({ emotion, text: text.slice(0, 200), source: 'claude' });
+    const data = JSON.stringify({ emotion, text: text.slice(0, 200), source: 'hook' });
     const req = http.request({
       hostname: SERVER_HOST,
       port: SERVER_PORT,
@@ -118,8 +108,8 @@ async function main() {
   const ti = args.indexOf('--text');
   if (ti !== -1 && args[ti + 1]) text = args[ti + 1];
 
-  // Environment variable (Claude Code may provide this)
-  if (!text && process.env.CLAUDE_MESSAGE_TEXT) text = process.env.CLAUDE_MESSAGE_TEXT;
+  // Environment variable (some LLM tools provide message text this way)
+  if (!text && process.env.LLM_MESSAGE_TEXT) text = process.env.LLM_MESSAGE_TEXT;
 
   // Stdin (universal hook pattern)
   if (!text) {

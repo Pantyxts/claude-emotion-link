@@ -1,65 +1,124 @@
-# claude-emotion-link ✦ Live2D Emotion Bridge for Claude Code
+# claude-emotion-link ✦ Live2D 情绪联动
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](package.json)
 
-**claude-emotion-link** bridges Claude Code's conversational output with a
-real-time Live2D character display.  Every message your AI assistant writes is
-analysed for emotional tone and reflected instantly as a facial expression on a
-Live2D model — bringing your assistant to life.
+一个让 Live2D 角色根据输入文本实时切换表情的小玩具。
 
----
+原理很简单：服务端收到一段文字 → 关键词匹配猜情绪 → 通过 SSE 推给浏览器 → 浏览器上的 Live2D 模型自动切换到对应的表情。整个过程不到半秒。
 
-## ✨ Features
+## 效果
 
-- **Real-time emotion detection** — keyword-based analysis of Claude Code output
-- **Live2D rendering** — powered by `pixi-live2d-display` with smooth parameter interpolation
-- **10 distinct expressions** — neutral, happy, very happy, sad, surprised, thinking, angry, embarrassed, sleepy, tipsy
-- **Zero-dependency server** — pure Node.js, no `npm install` required
-- **SSE-based push** — lightweight Server-Sent Events for instant browser updates
-- **Hot-reload** — no page refresh needed when emotion changes
-- **Clip & play** — works with any Live2D Cubism 4 model (Hiyori Free sample included)
+目前用的是 **Hiyori**（Cubism 4 免费模型），28 个可控参数，覆盖了 10 种基础表情。模型背后还有一条 Canvas 画的"能量尾巴"，颜色和摆动幅度会跟着情绪一起变。
 
-## 🖼️ Architecture
+支持的情绪：平常、开心、超开心、难过、惊讶、思考、生气、害羞、困倦、微醺。
 
-```
-┌─────────────────────┐     POST /emotion     ┌──────────────────┐
-│  Claude Code         │──────────────────────→│  Emotion Bridge  │
-│  (postMessage hook)  │                       │  Server (3456)   │
-│                     │                        │                  │
-│  "好开心喵～！"      │                        │  ┌─ SSE stream  ─┤
-└─────────────────────┘                        └────────┬─────────┘
-                                                        │
-                                                   EventSource
-                                                        │
-                                                        ▼
-                                              ┌──────────────────┐
-                                              │  Browser Viewer  │
-                                              │  ┌────────────┐  │
-                                              │  │  Live2D    │  │
-                                              │  │  Model     │  │
-                                              │  │  😊→😄→😢  │  │
-                                              │  └────────────┘  │
-                                              └──────────────────┘
-```
-
-## 🚀 Quick Start
-
-### 1. Start the server
+## 跑起来
 
 ```bash
+# 1. 启动服务
 node server/index.js
+
+# 2. 浏览器打开 http://localhost:3456
+# 3. 看到 Hiyori 加载出来就说明跑通了
 ```
 
-### 2. Open the viewer
+服务端零依赖，Node.js 18+ 就能跑。浏览器端用了 pixi.js 和 pixi-live2d-display 的 CDN，不需要自己装。
 
-Navigate to **http://localhost:3456** in your browser.
+### 测试情绪推送
 
-The Hiyori Free Live2D model will load and display with a neutral expression.
+```bash
+# 直接指定情绪
+curl -X POST http://localhost:3456/emotion \
+  -H "Content-Type: application/json" \
+  -d '{"emotion":"happy"}'
 
-### 3. Connect Claude Code (automatic)
+# 或者丢一段文字让它自己猜
+curl -X POST http://localhost:3456/emotion \
+  -H "Content-Type: application/json" \
+  -d '{"text":"好开心啊太棒了！"}'
+```
 
-Add the following to your project's `.claude/settings.local.json`:
+浏览器那边应该会立刻看到 Hiyori 的表情变了。
+
+## 怎么工作的
+
+```
+发一段文字 → POST /emotion → 关键词匹配 → SSE 广播 → 浏览器收到 → 模型表情切换
+```
+
+表情匹配用的是关键词打分，没什么高深的。每个情绪对应一组中文/英文关键词，命中就加分。长关键词权重比短的高，感叹号会放大"开心""生气"这类情绪，否定词（"不""没"）会扣分。最后哪个情绪分最高就选哪个，分数都不够就 fallback 到"平常"。
+
+虽然简陋，但胜在零延迟、不用 GPU、不用下载模型，而且行为完全可预期。
+
+## 项目结构
+
+```
+claude-emotion-link/
+├── server/index.js          # 服务端：静态文件 + SSE + 情绪分析
+├── hooks/
+│   └── claude-emotion-hook.js  # CLI hook，可以从 Claude Code 调用
+├── public/
+│   ├── index.html            # 主页面
+│   ├── test.html             # Live2D Core 加载测试页
+│   ├── css/style.css         # 样式
+│   ├── js/viewer.js          # 核心：表情映射 + 模型控制 + 尾巴动画 + SSE 客户端
+│   ├── lib/live2dcubismcore.min.js  # Cubism 4 Core (npm live2dcubismcore)
+│   └── models/
+│       ├── hiyori_free_t08/  # Hiyori 模型 (Cubism 4, 28 参数)
+│       └── mao_pro/          # 虹色まお Pro (Cubism 5, 备用，当前 Core 不兼容)
+├── docs/                     # 文档
+├── package.json
+└── test_puppeteer.js         # Puppeteer 自动化测试
+```
+
+## API
+
+| 端点 | 方法 | 作用 |
+|------|------|------|
+| `/` | GET | Live2D 显示页面 |
+| `/events` | GET | SSE 事件流，情绪更新实时推送 |
+| `/emotion` | POST | 提交情绪或文字，会广播给所有客户端 |
+| `/analyze` | POST | 分析文字情绪，不广播，只返回结果 |
+| `/status` | GET | 服务状态 + 当前情绪 |
+
+### POST /emotion
+
+```json
+// 方式一：直接指定情绪
+{ "emotion": "happy" }
+
+// 方式二：给文字让它分析
+{ "text": "太好了好开心！" }
+
+// 完整参数
+{ "emotion": "happy", "text": "太好了！", "source": "manual" }
+```
+
+### GET /events
+
+SSE 推送格式：
+
+```
+data: {"emotion":"happy","text":"...","source":"api","timestamp":1712345678000}
+```
+
+浏览器用 `EventSource` 接就行，断了会自动重连。服务端每 15 秒发一个心跳保活。
+
+## 换模型
+
+项目目前用 Hiyori，想换别的模型的话：
+
+1. 把模型文件放到 `public/models/你的模型/`
+2. 改 `public/js/viewer.js` 里的 `MODEL_PATH`
+3. 根据新模型的参数重写 `EXPRESSIONS` 映射表
+4. 模型参数列表在 `.cdi3.json` 文件里能查到
+
+之前试过换虹色まお（Cubism 5, 128 参数），表情会细腻很多，但 Cubism 5 的 Core WASM 目前拿不到，所以暂时退回 Cubism 4。等 Live2D 官方放开 v5 的 Web Core 再说。
+
+## Hook 集成
+
+`hooks/claude-emotion-hook.js` 可以在 Claude Code 或其他 LLM CLI 工具里当 postMessage hook 用。配置方式：
 
 ```json
 {
@@ -69,88 +128,20 @@ Add the following to your project's `.claude/settings.local.json`:
 }
 ```
 
-The hook activates on the **next Claude Code session** start.
-After restarting, every response will automatically update the Live2D model's expression.
+当然写成别的工具（tg bot、定时任务、快捷键脚本）来调 `POST /emotion` 也完全没问题，协议就是纯 HTTP + JSON。
 
-### 4. Or test manually
+## 开发小记
 
-```bash
-echo "太好了，好开心！" | node hooks/claude-emotion-hook.js
-```
+这个项目的起点是想给命令行里的 LLM 对话加一点"看得见的反馈"——屏幕上的角色能根据上下文做出表情反应，比纯文字聊天多了不少趣味。
 
-## 🎭 Expression Reference
+Live2D Web SDK 的文档和生态比想象中乱不少。Cubism 4 和 5 的 Core 不互通，npm 上的 `live2dcubismcore` 只有 v4 版本，v5 的 WASM 文件在 CDN 上全是 404。折腾了一圈，最后发现老老实实用 Cubism 4 的免费模型是最稳的。
 
-| Emotion | Trigger keywords | Live2D Model Response |
-|---------|-----------------|----------------------|
-| 😊 neutral | — (default) | Eyes fully open, gentle expression |
-| 😄 happy | "开心", "厉害", "nice" | Eyes smile (^_^), mouth open |
-| 🌟 veryHappy | "超开心", "最高", "amazing" | Eyes closed smile, big smile, blush |
-| 😢 sad | "难过", "伤心", "cry" | Downturned brows, slight frown |
-| 😮 surprised | "真的?", "惊讶", "wow" | Eyes wide, mouth open, brows raised |
-| 🤔 thinking | "嗯…", "想想", "hmm" | Half-closed eyes, head tilt |
-| 😣 angry | "生气", "可恶", "angry" | Angry brows, frown |
-| 😳 embarrassed | "害羞", "不好意思" | Blush, averted gaze, nervous smile |
-| 😴 sleepy | "困", "累", "zzz" | Heavy-lidded eyes, slightly open mouth |
-| 🍷 tipsy | "干杯", "酒", "微醺" | Rosy cheeks, relaxed eyes, slight sway |
+viewer.js 里的参数映射写得比较细，每个情绪都单独调过，不是随便拍的数。欢迎提 PR 改进。
 
-## 📦 Project Structure
+## 许可
 
-```
-claude-emotion-link/
-├── server/
-│   └── index.js                  # HTTP + SSE server (zero deps)
-├── hooks/
-│   └── claude-emotion-hook.js    # Claude Code postMessage hook
-├── public/
-│   ├── index.html                # Live2D viewer page
-│   ├── css/style.css             # Viewer styles
-│   ├── js/viewer.js              # Viewer logic & expression engine
-│   └── models/                   # Live2D model assets
-│       └── hiyori_free_t08/      # Hiyori Free (Cubism 4) sample model
-├── docs/
-│   ├── setup.md                  # Detailed setup guide
-│   ├── architecture.md           # Architecture documentation
-│   └── expressions.md            # Expression mapping reference
-├── package.json
-├── .gitignore
-└── README.md
-```
+MIT。
 
-## 🔧 API Reference
+## 贡献者
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/` | GET | Live2D emotion viewer (HTML) |
-| `/events` | GET | SSE event stream (emotion updates) |
-| `/emotion` | POST | Submit emotion data |
-| `/analyze` | POST | Analyse text without broadcast |
-| `/status` | GET | Server health + current state |
-
-### POST /emotion
-
-```json
-// Explicit emotion
-{ "emotion": "happy" }
-
-// Automatic text analysis
-{ "text": "好开心啊！" }
-
-// Full payload
-{ "emotion": "happy", "text": "好开心啊！", "source": "claude" }
-```
-
-## 📋 Requirements
-
-- **Node.js** ≥ 18 (no npm dependencies)
-- **Browser** with WebGL support (Chrome, Firefox, Edge, Safari)
-- **Claude Code** (for automatic hook integration)
-
-## 📜 License
-
-MIT — see [LICENSE](LICENSE).
-
-## 🙏 Credits
-
-- Live2D sample model **Hiyori** © Live2D Inc. (Free Material)
-- [pixi-live2d-display](https://github.com/guansss/pixi-live2d-display) by guansss
-- [PixiJS](https://pixijs.com/)
+- [**Pantyxts**](https://github.com/Pantyxts) — 设计、开发、维护

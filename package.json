@@ -1,23 +1,26 @@
 {
   "name": "claude-emotion-link",
-  "version": "1.0.0",
-  "description": "Real-time Claude Code emotion display with Live2D model integration — watch your AI assistant's expressions come to life.",
+  "version": "2.1.0",
+  "description": "Live2D 情绪联动 —— 文字输入实时驱动角色表情变化，SSE 推送 + pixi.js 渲染",
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
     "dev": "node server/index.js"
   },
   "keywords": [
-    "claude-code",
     "live2d",
     "emotion",
     "realtime",
     "sse",
-    "vtuber"
+    "pixi-js",
+    "cubism4"
   ],
-  "author": "",
+  "author": "Pantyxts",
   "license": "MIT",
   "engines": {
     "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "puppeteer": "^25.3.0"
   }
 }
