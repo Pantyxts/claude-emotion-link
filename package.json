@@ -1,0 +1,23 @@
+{
+  "name": "claude-emotion-link",
+  "version": "1.0.0",
+  "description": "Real-time Claude Code emotion display with Live2D model integration — watch your AI assistant's expressions come to life.",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js"
+  },
+  "keywords": [
+    "claude-code",
+    "live2d",
+    "emotion",
+    "realtime",
+    "sse",
+    "vtuber"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

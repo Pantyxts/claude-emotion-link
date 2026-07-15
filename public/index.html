@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>claude-emotion-link — Live2D Emotion Viewer</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Background -->
+  <div class="bg-stars"></div>
+  <div class="bg-glow"></div>
+
+  <!-- Floating effects container -->
+  <div class="float-effects" id="float-effects"></div>
+
+  <!-- Loading screen -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div class="loading-text">Loading Live2D Model…</div>
+    <div class="loading-sub">Hiyori Free (Cubism 4)</div>
+  </div>
+
+  <!-- Main application -->
+  <div class="app">
+
+    <!-- Header -->
+    <div class="header">
+      <span class="header-icon">✦</span>
+      <span>claude-emotion-link</span>
+    </div>
+
+    <!-- Status -->
+    <div class="status-bar">
+      <span class="status-dot" id="status-dot"></span>
+      <span class="status-label" id="status-label">Connecting…</span>
+    </div>
+
+    <!-- Canvas -->
+    <div class="canvas-wrap" id="canvas-wrap">
+      <canvas id="live2d-canvas"></canvas>
+
+      <!-- Emotion overlay -->
+      <div class="emotion-overlay">
+        <span class="emotion-icon" id="emotion-icon">😊</span>
+        <span class="emotion-name" id="emotion-name">平常</span>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="corner-info">claude-emotion-link v1.0 · MIT</div>
+
+  </div>
+
+  <!-- ==========================================
+       CDN Dependencies
+       Order matters: Cubism Core → PIXI.js → pixi-live2d-display
+       ========================================== -->
+  <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.3.2/dist/pixi.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.5.0/dist/index.min.js"></script>
+
+  <!-- Application -->
+  <script src="js/viewer.js"></script>
+
+</body>
+</html>

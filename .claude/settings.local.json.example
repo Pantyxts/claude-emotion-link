@@ -1,0 +1,5 @@
+{
+  "hooks": {
+    "postMessage": "node .claude/hooks/claude-emotion-hook.js"
+  }
+}
