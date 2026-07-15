@@ -2,18 +2,26 @@
  * popup-viewer.js — 独立 Live2D 角色悬浮窗
  * =============================================
  *
- * 从主窗口通过 URL 参数接收模型路径，独立渲染 Live2D 角色，
- * 透明背景，无 UI，专门用于 OBS 窗口捕获或桌面悬浮。
+ * 从主窗口通过 URL 参数接收模型路径和视角状态，
+ * 独立渲染 Live2D 角色，透明背景，无 UI。
+ * 支持拖拽平移 + 滚轮缩放 + 双击重置。
  *
  * URL 参数:
  *   ?model=models/hiyori_free_t08/hiyori_free_t08.model3.json
- *   ?scale=0.28  (可选，默认 0.28)
+ *   &scale=0.22&x=0&y=0&zoom=1.00
  */
 
 // ── 读取 URL 参数 ──
 const params = new URLSearchParams(window.location.search);
 const MODEL_PATH = params.get('model') || 'models/hiyori_free_t08/hiyori_free_t08.model3.json';
-const MODEL_SCALE = parseFloat(params.get('scale')) || 0.28;
+const MODEL_SCALE = parseFloat(params.get('scale')) || 0.22;
+let modelOffsetX = parseFloat(params.get('x')) || 0;
+let modelOffsetY = parseFloat(params.get('y')) || 0;
+let modelZoom = parseFloat(params.get('zoom')) || 1.0;
+
+const ZOOM_MIN = 0.2;
+const ZOOM_MAX = 3.5;
+const ZOOM_STEP = 0.06;
 
 // ── 表情参数映射（和主 viewer.js 保持一致）──
 const EXPRESSIONS = {
@@ -145,10 +153,129 @@ function setEmotion(emotionId) {
   currentEmotion = emotionId;
   const target = expr.params;
 
-  // Direct set (no interpolation for popup — keep it simple)
   for (const [k, v] of Object.entries(target)) {
     try { core.setParameterValueById(k, v); } catch {}
   }
+}
+
+// ── Apply model transform ──
+function applyModelTransform() {
+  if (!model || !app) return;
+  const sw = app.screen.width;
+  const sh = app.screen.height;
+  model.x = sw / 2 + modelOffsetX;
+  model.y = sh / 2 + modelOffsetY;
+  model.scale.set(MODEL_SCALE * modelZoom);
+}
+
+// ── Pan & Zoom ──
+let isDragging = false;
+let dragStartX = 0, dragStartY = 0;
+let dragStartOffX = 0, dragStartOffY = 0;
+
+function initPanZoom() {
+  const canvas = document.getElementById('live2d-canvas');
+  if (!canvas) return;
+
+  canvas.style.cursor = 'grab';
+
+  canvas.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    isDragging = true;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    dragStartOffX = modelOffsetX;
+    dragStartOffY = modelOffsetY;
+    canvas.style.cursor = 'grabbing';
+    e.preventDefault();
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    modelOffsetX = dragStartOffX + (e.clientX - dragStartX);
+    modelOffsetY = dragStartOffY + (e.clientY - dragStartY);
+    applyModelTransform();
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (!isDragging) return;
+    isDragging = false;
+    if (canvas) canvas.style.cursor = 'grab';
+  });
+
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const cx = e.clientX - rect.left - rect.width / 2;
+    const cy = e.clientY - rect.top - rect.height / 2;
+
+    const oldZoom = modelZoom;
+    if (e.deltaY < 0) {
+      modelZoom = Math.min(ZOOM_MAX, modelZoom + ZOOM_STEP);
+    } else {
+      modelZoom = Math.max(ZOOM_MIN, modelZoom - ZOOM_STEP);
+    }
+
+    const ratio = modelZoom / oldZoom;
+    modelOffsetX = cx + (modelOffsetX - cx) * ratio;
+    modelOffsetY = cy + (modelOffsetY - cy) * ratio;
+
+    applyModelTransform();
+  }, { passive: false });
+
+  canvas.addEventListener('dblclick', () => {
+    modelOffsetX = 0;
+    modelOffsetY = 0;
+    modelZoom = 1.0;
+    applyModelTransform();
+  });
+
+  // Touch support
+  let tsDist = 0, tsZoom = 1, tsMidX = 0, tsMidY = 0, tsOffX = 0, tsOffY = 0;
+  canvas.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 1) {
+      isDragging = true;
+      dragStartX = e.touches[0].clientX;
+      dragStartY = e.touches[0].clientY;
+      dragStartOffX = modelOffsetX;
+      dragStartOffY = modelOffsetY;
+    } else if (e.touches.length === 2) {
+      isDragging = false;
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      tsDist = Math.sqrt(dx * dx + dy * dy);
+      tsZoom = modelZoom;
+      tsMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      tsMidY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      tsOffX = modelOffsetX;
+      tsOffY = modelOffsetY;
+    }
+    e.preventDefault();
+  }, { passive: false });
+
+  canvas.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 1 && isDragging) {
+      modelOffsetX = dragStartOffX + (e.touches[0].clientX - dragStartX);
+      modelOffsetY = dragStartOffY + (e.touches[0].clientY - dragStartY);
+      applyModelTransform();
+    } else if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const scale = tsDist > 0 ? dist / tsDist : 1;
+      modelZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, tsZoom * scale));
+      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      modelOffsetX = tsOffX + (midX - tsMidX);
+      modelOffsetY = tsOffY + (midY - tsMidY);
+      applyModelTransform();
+    }
+    e.preventDefault();
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', () => { isDragging = false; });
+
+  window.addEventListener('resize', () => { applyModelTransform(); });
 }
 
 // ── SSE ──
@@ -181,10 +308,14 @@ async function loadModel() {
 
   const { Live2DModel } = PIXI.live2d;
 
+  // Dynamic canvas size: use window inner size
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+
   app = new PIXI.Application({
     view: canvas,
-    width: 500,
-    height: 600,
+    width: w,
+    height: h,
     transparent: true,
     backgroundAlpha: 0,
     antialias: true,
@@ -192,12 +323,8 @@ async function loadModel() {
 
   model = await Live2DModel.from(MODEL_PATH, { autoInteract: false });
 
-  const sw = app.screen.width;
-  const sh = app.screen.height;
-  model.x = sw / 2;
-  model.y = sh / 2;
-  model.scale.set(MODEL_SCALE);
   model.anchor.set(0.5, 0.42);
+  applyModelTransform();
 
   app.stage.addChild(model);
 
@@ -212,10 +339,17 @@ async function loadModel() {
 
 // ── Listen for commands from main window ──
 window.addEventListener('message', (e) => {
-  if (e.data && e.data.type === 'set-emotion' && e.data.emotion) {
+  if (!e.data) return;
+  if (e.data.type === 'set-emotion' && e.data.emotion) {
     setEmotion(e.data.emotion);
   }
-  if (e.data && e.data.type === 'set-model' && e.data.path) {
+  if (e.data.type === 'view-state') {
+    if (typeof e.data.x === 'number') modelOffsetX = e.data.x;
+    if (typeof e.data.y === 'number') modelOffsetY = e.data.y;
+    if (typeof e.data.zoom === 'number') modelZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, e.data.zoom));
+    applyModelTransform();
+  }
+  if (e.data.type === 'set-model' && e.data.path) {
     window.location.search = '?model=' + encodeURIComponent(e.data.path);
   }
 });
@@ -224,6 +358,7 @@ window.addEventListener('message', (e) => {
 (async () => {
   try {
     await loadModel();
+    initPanZoom();
     connectSSE();
   } catch (err) {
     document.getElementById('status').textContent = 'error: ' + err.message;

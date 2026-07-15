@@ -623,17 +623,30 @@ function openPopup() {
     popupWindow.focus();
     return;
   }
-  const url = '/popup.html?model=' + encodeURIComponent(MODEL_PATH) + '&scale=' + MODEL_SCALE;
-  popupWindow = window.open(url, 'live2d-overlay', 'width=520,height=640,menubar=no,toolbar=no,status=no');
+  const url = '/popup.html?model=' + encodeURIComponent(MODEL_PATH)
+    + '&scale=' + MODEL_SCALE
+    + '&x=' + Math.round(modelOffsetX)
+    + '&y=' + Math.round(modelOffsetY)
+    + '&zoom=' + modelZoom.toFixed(2);
+  popupWindow = window.open(url, 'live2d-overlay', 'width=520,height=680,menubar=no,toolbar=no,status=no,resizable=yes');
   if (els.popupBtn) els.popupBtn.textContent = '📌 已弹出';
 }
 
 // Listen for popup-ready message
 window.addEventListener('message', (e) => {
   if (e.data && e.data.type === 'popup-ready') {
-    // Send current emotion to popup
+    // Send current emotion + view state to popup
     if (popupWindow && !popupWindow.closed) {
-      popupWindow.postMessage({ type: 'set-emotion', emotion: currentEmotion }, '*');
+      popupWindow.postMessage({
+        type: 'set-emotion',
+        emotion: currentEmotion,
+      }, '*');
+      popupWindow.postMessage({
+        type: 'view-state',
+        x: Math.round(modelOffsetX),
+        y: Math.round(modelOffsetY),
+        zoom: modelZoom,
+      }, '*');
     }
   }
 });
